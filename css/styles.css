@@ -70,7 +70,7 @@ body {
     display: flex;
     align-items: center;
     flex-shrink: 0;
-    gap: 36px;
+    gap: 25px;
 }
 
 .nav-link {
@@ -370,6 +370,10 @@ figure {
         --page-margin: 24px;
     }
 
+    .filter-section {
+        justify-content: center;
+    }
+
     .grid-container {
         grid-template-columns: 1fr;
     }
@@ -382,5 +386,9 @@ figure {
         width: 100%;
         height: auto;
         aspect-ratio: 315 / 276;
+    }
+
+    .project-title-row {
+        width: 100%;
     }
 }
