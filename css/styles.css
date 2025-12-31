@@ -319,7 +319,57 @@ figure {
     color: var(--color-text);
 }
 
-@media (max-width: 400px) {
+@media (max-width: 1024px) {
+    :root {
+        --page-margin: 100px;
+    }
+}
+
+@media (max-width: 768px) {
+    :root {
+        --page-margin: 40px;
+    }
+
+    .nav-left {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .navigation-bar {
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .nav-right {
+        justify-content: center;
+    }
+
+    .filter-section {
+        flex-wrap: wrap;
+    }
+
+    .grid-container {
+        justify-content: center;
+    }
+
+    .footer-content {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+    }
+
+    .footer-icons {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 500px) {
+    :root {
+        --page-margin: 24px;
+    }
+
     .grid-container {
         grid-template-columns: 1fr;
     }
