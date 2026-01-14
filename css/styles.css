@@ -123,6 +123,10 @@ body {
     transition: color 0.2s ease;
 }
 
+.project-nav-link:first-child {
+    color: var(--color-text);
+}
+
 .project-nav-link:hover {
     color: var(--color-text);
 }
@@ -567,7 +571,7 @@ figure {
     }
 
     .project-navigation-bar {
-        flex-wrap: nowrap;
+        flex-wrap: wrap;
         padding: 0;
     }
 
@@ -575,7 +579,13 @@ figure {
         padding: 10px 12px;
         font-size: 12px;
     }
-    
+
+    .project-nav-link:first-child {
+        width: 100%;
+        background-color: #f0f0f0;
+        border-radius: 4px 4px 0 0;
+    }
+
     .project-main-title {
         font-size: 22px;
     }
@@ -600,14 +610,5 @@ figure {
 
     .project-title-row {
         width: 100%;
-    }
-
-    .project-table {
-        font-size: 12px;
-    }
-
-    .project-table th,
-    .project-table td {
-        padding: 8px;
     }
 }
