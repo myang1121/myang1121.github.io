@@ -4,6 +4,14 @@
     font-weight: normal;
     font-style: normal;
 }
+
+@font-face {
+    font-family: "IBM Plex Serif";
+    src: url("./../fonts/IBM_Plex_Serif/IBMPlexSerif-Bold.ttf") format("truetype");
+    font-weight: bold;
+    font-style: normal;
+}
+
 html {
     box-sizing: border-box;
     /*outline: red 2px solid;*/
@@ -20,6 +28,7 @@ html {
     --page-margin: 100px;
     --font-primary: "IBM Plex Serif", system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
     --color-text: #000000;
+    --article-color-text: #37383C;
     --color-text-muted: #919191;
     --color-background: #fafafa;
     --color-border: #e0e0e0;
@@ -48,6 +57,10 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+.nav-title {
+    font-weight: normal;
 }
 
 .nav-left {
@@ -82,6 +95,35 @@ body {
 
 .nav-link:hover,
 .nav-link.active {
+    color: var(--color-text);
+}
+
+.project-navigation-bar {
+    width: 100%;
+    max-width: 990px;
+    padding: 0 var(--page-margin);
+    display: flex;
+    align-items: stretch;
+    background-color: #D9D9D9;
+    border-radius: 4px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    
+}
+
+.project-nav-link {
+    display: flex;
+    align-items: left;
+    padding: 12px 24px;
+    font-size: 14px;
+    text-decoration: none;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    transition: color 0.2s ease;
+}
+
+.project-nav-link:hover {
     color: var(--color-text);
 }
 
@@ -168,6 +210,54 @@ body {
     background-color: var(--color-background);
 }
 
+.project-article {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-top: 40px;
+}
+
+.project-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.project-main-title {
+    margin: 0 0 12px 0;
+    line-height: 1.3;
+}
+
+.project-page-date {
+    color: var(--color-text);
+    margin: 0 0 4px 0;
+}
+
+.project-page-authors {
+    color: var(--color-text);
+    margin: 0;
+}
+
+.project-hero {
+    margin: 0 0 60px 0;
+    text-align: center;
+}
+
+.project-hero-media {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto 12px;
+}
+
+.project-hero-media iframe {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    height: auto;
+}
+
+.project-hero-caption {
+    font-size: 13px;
+    color: var(--color-text);
+    margin: 0;
+}
 
 .grid-container {
     display: grid;
@@ -244,6 +334,82 @@ body {
 
 figure {
     margin: 0px;
+}
+
+.section-content img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 24px auto;
+}
+
+.content-figure {
+    margin: 24px 0;
+    text-align: center;
+}
+
+.content-figure img {
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+}
+
+.section-content figure figcaption,
+.content-figure figcaption {
+    font-size: 13px;
+    color: var(--color-text);
+    margin-top: 8px;
+    text-align: center;
+}
+
+.project-section {
+    margin-bottom: 48px;
+    scroll-margin-top: 60px;
+}
+
+.section-content {
+    color: var(--article-color-text);
+    font-size: 15px;
+}
+
+.section-content strong {
+    font-weight: bold;
+}
+
+.section-content a {
+    color: var(--color-text);
+    text-decoration: underline;
+}
+
+.section-content a:hover {
+    opacity: 0.6;
+}
+
+.hardware-list {
+    margin: 16px 0;
+    padding-left: 24px;
+}
+
+.hardware-list li {
+    margin-bottom: 8px;
+    line-height: 1.6;
+}
+
+.project-table {
+    border-collapse: collapse;
+    margin: 24px 0;
+    font-size: 14px;
+}
+
+.project-table th,
+.project-table td {
+    border: 1px solid var(--color-text);
+    text-align: left;
+    padding: 8px;
+}
+
+.project-table th {
+    font-weight: bold;
 }
 
 .pagination {
@@ -346,6 +512,32 @@ figure {
         justify-content: center;
     }
 
+    .project-navigation-bar {
+        border-radius: 0;
+        padding: 0 20px;
+    }
+
+    .project-nav-link {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+
+    .project-article {
+        padding-top: 30px;
+    }
+
+    .project-main-title {
+        font-size: 26px;
+    }
+
+    .section-title {
+        font-size: 20px;
+    }
+
+    .sub-section-title {
+        font-size: 15px;
+    }
+
     .filter-section {
         flex-wrap: wrap;
     }
@@ -374,6 +566,24 @@ figure {
         justify-content: center;
     }
 
+    .project-navigation-bar {
+        flex-wrap: nowrap;
+        padding: 0;
+    }
+
+    .project-nav-link {
+        padding: 10px 12px;
+        font-size: 12px;
+    }
+    
+    .project-main-title {
+        font-size: 22px;
+    }
+
+    .project-hero-media iframe {
+        aspect-ratio: 4 / 3;
+    }
+
     .grid-container {
         grid-template-columns: 1fr;
     }
@@ -390,5 +600,14 @@ figure {
 
     .project-title-row {
         width: 100%;
+    }
+
+    .project-table {
+        font-size: 12px;
+    }
+
+    .project-table th,
+    .project-table td {
+        padding: 8px;
     }
 }
