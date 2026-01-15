@@ -316,7 +316,7 @@ figure {
 }
 
 .section-content img {
-    max-width: 100%;
+    max-width: 50%;
     height: auto;
     display: block;
     margin: 24px auto;
@@ -328,7 +328,7 @@ figure {
 }
 
 .content-figure img {
-    max-width: 100%;
+    max-width: 50%;
     height: auto;
     margin: 0 auto;
 }
@@ -339,6 +339,10 @@ figure {
     color: var(--color-text);
     margin-top: 8px;
     text-align: center;
+}
+
+.section-content figure > table + figcaption {
+    text-align: left;
 }
 
 .project-section {
@@ -390,6 +394,14 @@ figure {
 
 .project-table th {
     font-weight: bold;
+}
+
+.math {
+    margin: auto 30px;
+}
+
+.citation-text {
+    margin: auto 30px;
 }
 
 .pagination {
