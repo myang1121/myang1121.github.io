@@ -31,7 +31,7 @@
             </header>
             <figure class="project-hero">
                 <div class="project-hero-media">
-                    <iframe width="560" height="315" src="https://www.youtube.com/embed/owWskybi2ng?si=0u_G-Jf5qSAFXC5r" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+                    <iframe width="560" height="315" src="https://www.youtube.com/embed/IXEofso0_44?si=MK0IOiRm1RZ1r-kY" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
                 </div>
                 <figcaption class="project-hero-caption">Ping Pong Launcher with Raspberry Pi 4 Demonstration Video</figcaption>
             </figure>
@@ -47,7 +47,7 @@
                     <p>
                         The original proposal was to create a badminton launcher, inspired by one of Michelle’s friend who is taking badminton lessons as part of his university's PE requirement, however, due to safety concerns and limited laboratory testing space, the project was adjusted to focus on a ping pong ball launcher instead. We also made several design refinements, transitioning from a servo-based flinging arm to a dual DC motor wheel system to achieve better torque, consistency, and control.
                     </p>
-                    <img src="./images/board_complete.jpg" alt="">
+                    <img src="./images/a.png" alt="ping pong launcher image">
                     <p>
                         Our system allows users to practice receiving serves and returns without the need for a training partner. It also enables control of essential parameters, including horizontal positioning (via stepper motor rotation), launch timing and speed (via dual DC motor wheels), and ball release sequencing (via a servo-controlled feeding mechanism). Users interact with the launcher through a touchscreen interface on the piTFT. We developed a functional training tool that demonstrates how embedded systems concepts learned in ECE 5725 can be applied to real-world applications by integrating common components such as DC motors, a servo motor, and a stepper motor, all controlled through multithreaded Python code.
                     </p>
@@ -81,11 +81,11 @@
                 <h3 class="sub-section-title"><u>Positioning Control Systems:</u></h3>
                 <div class="section-content">
                     <p>
-                        <strong>Horizontal Positioning:</strong><br>
+                        <strong>Horizontal Positioning:</strong>
                         We used a stepper motor at the bottom of the launcher that turns the whole setup to change the horizontal angle. Users can set the angle to be -360 degree to 360 degree which allows the launcher to aim left, center, right across the table. We put this stepper motor on top of our tripod, making some distance between the point where the ball launches and the table so it could go farther.
                     </p>
                     <p>
-                        <strong>Vertical Positioning</strong><br>
+                        <strong>Vertical Positioning:</strong>
                         We initially planned to use an additional servo motor to control the vertical launch angle. This required another board placed on top of the stepper motor and rest of the setup on top of that board as well. However, we decided to remove this feature to avoid stability issues. The 3D printed board fits the stepper motor itself and can move without an issue but putting objects on top and tilt it would cause the whole thing to fall. Moreover, ping pong ball should be launched downward and the tripod+gravity already provides this advantage for us. The final design launches the ball in a fixed forward downward trajectory, making it similar to realistic pratice scenarios.
                     </p>
                 </div>
@@ -98,19 +98,19 @@
                 <h3 class="sub-section-title"><u>Physical Assembly:</u></h3>
                 <div class="section-content">
                     <p>
-                        <strong>Base:</strong><br>
+                        <strong>Base:</strong>
                         A wooden board is placed on top of the stepper motor that serves as a base for the launcher. It holds the main controllers such as the Raspberry Pi 4 and breadboard. We sawed a square hole in the middle of the board to put the stepper motor in which allows its shaft stick out. And to further keep the board from tipping over, it is held in place with velcro tape and double sided mounting tape.                    
                     </p>
                     <p>
-                        <strong>Launcher:</strong><br>
+                        <strong>Launcher:</strong>
                         Instead of putting a separate rotating platform on top of the stepper motor which made it hard to balance, we mounted the DC motors and ball feeder tube directly on the stepper motor shaft. This design lowered the center of gravity and improved overall stability.
                     </p>
                     <p>
-                        <strong>Ball feeder:</strong><br>
+                        <strong>Ball feeder:</strong>
                         A cardboard tube made from multiple toilet paper rolls was cut open to allow the balls to pass through smoothly. It is attached to multiple wood pieces for stability. The servo controlled gate at the bottom end of the tube allows one ball out at a time into the space between the two DC motor wheels.
                     </p>
                     <p>
-                        <strong>Mounting and adhesion:</strong><br>
+                        <strong>Mounting and adhesion:</strong>
                         We used a mix of hot glue, regular tapes, electrical tape, mounting tape, and velcro tape to hold the parts in place.
                     </p>
                 </div>
@@ -119,42 +119,42 @@
                     <p>
                         Besides the components stated above, we initially planned to use the MPU 6050 accelerometer to detect launch motion and orientation. We then switched to the LIS3DH accelerometer as it would provide enough features for our project as we only required 3 axis acceleration data. In the end, we found that precise motion sensing was not critical for our final design and so we avoided both.
                     </p>
-                    <img src="./images/board_complete.jpg" alt="">
+                    <img src="./images/servo.png" alt="ball release servo image">
                 </div>
                 <h2 class="section-title">Program</h2>
-                <h3 class="sub-section-title"><u>Thread Structure (Before Animation)</u></h3>
+                <h3 class="sub-section-title"><u>Thread Structure (Before Animation):</u></h3>
                 <div class="section-content">
-                    <img src="./images/board_complete.jpg" alt="">
+                    <img src="./images/user.png" alt="thread structure before animation">
                     <p>
-                        <strong>User input thread:</strong><br>
+                        <strong>User input thread:</strong>
                         This thread reads user input parameters on terminal including stepper motor angle which is the horizontal position, number of balls to launch, the time between each ball release, and the speed of the DC motors
                     </p>
                     <p>
-                        <strong>Stepper motor thread:</strong><br>
+                        <strong>Stepper motor thread:</strong>
                         This thread waits for semaphore signal from user input thread before executing the rotation. It controls the horizontal position to the desired angle.
                     </p>
                     <p>
-                        <strong>Ball release thread:</strong><br>
+                        <strong>Ball release thread:</strong>
                         This thread opens the gate to release one ball then closes it quickly after receiving a semaphore signal from the user input thread.
                     </p>
                     <p>
-                        <strong>Ball launcher thread:</strong><br>
+                        <strong>Ball launcher thread:</strong>
                         This thread spins up the DC motors to launch the ball when it received semaphore signal from the ball release thread.
                     </p>
-                    <img src="./images/board_complete.jpg" alt="">
+                    <img src="./images/animation.png" alt="thread structure after animation">
                 </div>
                 <h3 class="sub-section-title"><u>Motor Control:</u></h3>
                 <div class="section-content">
                     <p>
-                        <strong>Stepper motor:</strong><br>
+                        <strong>Stepper motor:</strong>
                         We implemented this using step sequencing with appropriate delays between phases. The motor rotates to user input desired angles with calibrated step counts.
                     </p>
                     <p>
-                        <strong>Servo motor:</strong><br>
+                        <strong>Servo motor:</strong>
                         The servo motor is controlled using PWM at 50 Hz (20 ms period) as specified in the SG90 datasheet. We calibrated two positions: release_closed = 180 which is the gate closed position and release_open = 90 which is gate open when release the ball. At first, the servo would immediately open when we start the program. We fixed this by setting the initial duty cycle to angle_to_dc(180) to ensure it starts in a closed position
                     </p>
                     <p>
-                        <strong>DC motors:</strong><br>
+                        <strong>DC motors:</strong>
                         These motors are controlled through the motor driver using PWM for speed control. We utilized our code from rolling_control.py and run_test.py from lab 3.                    
                     </p>  
                 </div>
@@ -177,6 +177,7 @@
                     <p>
                         We also encountered issues with the PiTFT interface. In particular, after running the animation thread, the display would occasionally turn black and fail to update properly. This behavior suggested a threading or display refresh issue, which highlighted the challenges of managing concurrent graphical updates in a multithreaded environment.
                     </p>
+                    <img src="./images/circuit.png" alt="testing of motors and threads running">
                 </div>
             </section>
             <section class="project-section" id="conclusion">
@@ -194,6 +195,7 @@
                     <p>
                         The project was fun to design and build.
                     </p>
+                    <img src="./images/b.png" alt="side profile of ping pong launcher (shows RPi on back)">
                 </div>
             </section>
             <section class="project-section" id="future-work">
@@ -202,6 +204,89 @@
                     <p>
                         We hope to add additional controls to the ping pong ball launcher, including rotation about other axes to achieve more degrees of freedom. Specifically, we plan to add a servo motor beneath the two DC motors to control an additional launch angle. We also aim to develop a PiTFT interface that maps a ping pong table onto the display, allowing users to tap a coordinate on the screen and have the launcher send the ball to the corresponding location on the table.
                     </p>
+                </div>
+            </section>
+            <section class="project-section" id="work-distribution">
+                <h2 class="section-title">Work Distribution</h2>
+                <div class="section-content">
+                    <figure>
+                        <img src="./images/group.png" alt="group photo of Michelle & Ariel">
+                        <figcaption>Michelle Yang (left), Ariel Kang (right)</figcaption>
+                    </figure>
+                    <p>
+                        <strong>Michelle Yang:</strong>
+                        Designed most of the software architecture (motor threads, multithreading).
+                    </p>
+                    <p>
+                        <strong>Ariel Kang:</strong>
+                        Designed most of the animation (animation thread).
+                    </p>
+                </div>
+            </section>
+            <section class="project-section" id="parts-list">
+                <h2 class="section-title">Parts List</h2>
+                <div class="section-content">
+                    <table class="project-table">
+                        <thead>
+                            <tr>
+                                <th>Component</th>
+                                <th>Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Raspberry Pi 4 Model B</td>
+                                <td>$63.00</td>
+                            </tr>
+                            <tr>
+                                <td>Adafruit Capacitive piTFT</td>
+                                <td>$44.95</td>
+                            </tr>
+                            <tr>
+                                <td>Adafruit stepper motor</td>
+                                <td>$14.50 each</td>
+                            </tr>
+                            <tr>
+                                <td>180 degree micro servo motor </td>
+                                <td>$3.95 each</td>
+                            </tr>
+                            <tr>
+                                <td>Tripod (from HongKong)</td>
+                                <td>$10.00</td>
+                            </tr>
+                            <tr>
+                                <td>Breadboard</td>
+                                <td>$5.00</td>
+                            </tr>
+                            <tr>
+                                <td>Wires</td>
+                                <td>N/A</td>
+                            </tr>
+                            <tr>
+                                <td>Cardboard/toilet paper rolls</td>
+                                <td>N/A</td>
+                            </tr>
+                            <tr>
+                                <td>Tapes & hotglue</td>
+                                <td>N/A</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="section-content">
+                    <p>
+                        <strong>Total:</strong>
+                        ~169.9
+                    </p>
+                </div>
+            </section>
+            <section class="project-section" id="references">
+                <h2 class="section-title">References</h2>
+                <div class="section-content">
+                    <a class="ref-link" href="http://www.ee.ic.ac.uk/pcheung/teaching/DE1_EE/stores/sg90_datasheet.pdf" target="_blank" rel="noopener noreferrer">SG90 Servo Datasheet</a>
+                    <br>
+                    <a class="ref-link" href="https://www.omc-stepperonline.com/nema-17-stepper-motor-datasheet" target="_blank" rel="noopener noreferrer">Nema 17 Stepper Motor Datasheet</a>
+                    <br>
+                    <a class="ref-link" href="http://abyz.co.uk/rpi/pigpio/" target="_blank" rel="noopener noreferrer">Pigpio Library</a>
                 </div>
             </section>
         </article>

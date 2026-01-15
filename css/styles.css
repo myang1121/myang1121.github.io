@@ -352,6 +352,7 @@ figure {
 }
 
 .section-content strong {
+    color: var(--article-color-text);
     font-weight: bold;
 }
 
