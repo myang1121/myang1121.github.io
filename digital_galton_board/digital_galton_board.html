@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synthesizing Birdsong | Michelle Yang</title>
+    <link rel="icon" type="image/png" href="../images/girl_cat_computer.png">
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+    <header id="header">
+        <nav class="navigation-bar">
+            <div class="nav-left">
+                <img class="nav-avatar" src="../images/girl_cat_computer.png" alt="girl cat computer" width="173px" height="auto">
+                <h1 class="nav-title">Michelle Yang</h1>
+            </div>
+            <div class="nav-right">
+                <a class="nav-link active" href="../index.html" target="_blank" rel="noopener noreferrer">Projects</a>
+                <a class="nav-link" href="./synthesizing_birdsong/synthesizing_birdsong.html" target="_blank" rel="noopener noreferrer">Notes</a>
+                <a class="nav-link" href="./synthesizing_birdsong/synthesizing_birdsong.html" target="_blank" rel="noopener noreferrer">Blog</a>
+                <a class="nav-link" href="./synthesizing_birdsong/synthesizing_birdsong.html" target="_blank" rel="noopener noreferrer">About</a>
+                <a class="nav-link" href="./synthesizing_birdsong/synthesizing_birdsong.html" target="_blank" rel="noopener noreferrer">Others</a>
+            </div>
+        </nav>
+    </header>
+    <hr>
+    <main id="main-content">
+        <article class="project-article" id="top">
+            <header class="project-header">
+                <h1 class="project-main-title">Synthesizing Birdsong</h1>
+            </header>
+            <figure class="project-hero">
+                <div class="project-hero-media">
+                    <iframe width="560" height="315" src="https://www.youtube.com/embed/IXEofso0_44?si=MK0IOiRm1RZ1r-kY" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+                </div>
+                <figcaption class="project-hero-caption">Synthesizing Birdsong with Raspberry Pi Pico Demonstration Video (my phone got pit-pocket...lost the video QAQ!! need to record a new one!)</figcaption>
+            </figure>
+            <section class="project-section" id="introduction">
+                <h2 class="section-title">Introduction</h2>
+                <div class="section-content">
+                    <p>
+                        The goal was to design a bird song synthesizer that synthesizes one of the most common songs of the northern cardinal on a Raspberry Pi Pico with the RP2040 processor. We use direct digital synthesis to generate a pure sine wave “beep,” then amplitude modulate the beep to produce “swoop” and “chirp,” in an attempt to trick Cornell Ornithology’s Merlin Bird ID App. We control the synthesizer with a keypad, to associate pressing button 1 with “chirp,” button 2 with “swoop,” button 3 with “silence,” and developed record and playback modes (interface by pressing button 4 and 5 respectively) to capture and reproduce the song sequence with precise timing.
+                    </p>
+                </div>
+            </section>
+            <section class="project-section" id="design">
+                <h2 class="section-title">Design and Testing Methods</h2>
+                <h3 class="sub-section-title"><u>General:</u></h3>
+                <div class="section-content">
+                    <p>
+                        In the main part of the program, we initialized the serial interface, map the GPIO ports to the DAC pins, the GPIO ports to the on-board LED (for signaling entering protothread later on), set up the timing ISR, pre-calculate the bow envelope increments, build the sine lookup table, initialize the keypad, and identified 2 functions, photothread_core_0 (keypad thread) and protothread_playback to scheduler.
+                    </p>
+                    <p>
+                        The bow envelop calculation is needed to slowly ramp up and down the sinewave, to prevent high frequency “pops” and “clicks” in the generated speaker output sound. The sine lookup table produce values between 0 and 4096 (2^16), the range of data the DAC will receive. The sine lookup table will be index into when performing direct digital synthesis in the timer ISR.
+                    </p>
+                    <figure>
+                        <img src="./images/fig1.png" alt="Set up increment for bow envelope and sine loopup table">
+                        <figcaption><strong>Figure 1.</strong> Set up increment for bow envelope and sine loopup table</figcaption>
+                    </figure>
+                    <p>
+                        In the main, the timer interrupt is enabled, associated with its interrupt handler function, and armed for the first time by writing the lower 32 bits of the target time (DELAY time passed current time) to the alarm register.
+                    </p>
+                    <figure>
+                        <img src="./images/fig2.png" alt="Timer IRQ Setup">
+                        <figcaption><strong>Figure 2.</strong> Timer IRQ Setup</figcaption>
+                    </figure>
+                    <p>
+                        To interface with the keypad, all 7 keypad buttons are inialize with corresponding GPIO pins. The row pins are set to output and are connected in series with external 330 ohms pull down resistors, and column pins are set to input with internal pulldown resistors turn on.
+                    </p>
+                    <figure>
+                        <img src="./images/fig3.png" alt="Keypad Initialize">
+                        <figcaption><strong>Figure 3.</strong> Keypad Initialize</figcaption>
+                    </figure>
+                    <p>
+                        Two core-safe (although only core 0 is utilitized) semaphores are used to ensure the precise alternation between the keypad thread and the playback thread. These semaphores are initializefd before starting either of the two proto-threads (keypad thread and playback thread). Since we want the keypad thread to run automatically when program reboot, we set the keypad_thread_go_s initial count to 1,  and the playback_thread_go_s initial count to 0, to block the playback thread while the keypad thread runs. If a song is recorded (the recorded_song length 30 array is not empty) and the playback button is pressed, the keypad thread signals the playback thread (increment playback_thread_go_s semaphore) to playback the recorded song, and after the playback thread finish reproducing all the songs (by sending array’s stored button press to timer ISR)  and resets the array, the playback thread signals back to the keypad thread (increment keypad_thread_go_s semaphore) to starting scanning for valid keys again.  At the end of main, we start the scheduler to schedule the core 0 threads (keypad thread and playback thread).
+                    </p>
+                    <figure>
+                        <img src="./images/fig4.png" alt="Semaphore initialize, add threads to scheduler, start scheduler">
+                        <figcaption><strong>Figure 4.</strong> Semaphore initialize, add threads to scheduler, start scheduler</figcaption>
+                    </figure>
+                </div>
+                
+                <h3 class="sub-section-title"><u>Timer ISR:</u></h3>
+                <div class="section-content">
+                    <p>
+                        We first combined the audio beep-beep demo code with the keypad demo code to associate a button press on the keypad with the production of a pure sine wave “beep.” The beep-beep demo code fires an interrupt once per second, generating a 400 Hz beep through an SPI DAC. We removed the state transition else statement from the  beep-beep ISR to prevent repeated “beep” production. When a button press, a sound is generated (in state 0) , then the state transitions to state 1, and stays in state 1 until another valid button press.
+                    </p>
+                    <figure>
+                        <img src="./images/fig5.png" alt="Removed state transition">
+                        <figcaption><strong>Figure 5.</strong> Removed state transition</figcaption>
+                    </figure>
+                    <p>
+                        “The song of a northern cardinal can be decomposed into three sound primitives: a low-frequency swoop at the beginning of each call, a chirp after each swoop which moves rapidly from low frequency to high frequency, and silence which separates each swoop/chirp combination” (Synthesizing Birdsong via Direct Digital Synthesis webpage).
+                    </p>
+                    <figure>
+                        <img src="./images/fig6.png" alt="Spectogram of Northern Cardinal song">
+                        <figcaption><strong>Figure 6.</strong> Spectogram of Northern Cardinal song</figcaption>
+                    </figure>
+                    <p>
+                        Using if-else statements, we associate button press with the desired sound. If button 1 is pressed, produce a “swoop” sound. If button 2 is pressed, produce a “chirp” sound. If button 3 is pressed, produce a silent “pause” sound.
+                    </p>
+                    <figure>
+                        <img src="./images/fig7.png" alt="Associate button press with desire synthesize frequency">
+                        <figcaption><strong>Figure 7.</strong> Associate button press with desire synthesize frequency</figcaption>
+                    </figure>
+                    <p>
+                        We set the phase incrementor angle to index into the sine lookup table, to obtain a value to send to the DAC, to produce our desired sound. We observe from the spectrogram that the “swoop” of the song looks like the first half of the sine-wave, the “chirp” of the song looks like the second half of an upward parabola, and the “silence” of the song is a constant frequency of 0. We found the desired frequency function with count_0 as the dependent variable for the “swoop” and “chirp.”
+                    </p>
+                    <p>
+                        Note that the length of these sound primitives are 130ms, so they all last for:
+                    </p>
+                    <p class="math">
+                        0.130 sec ⋅ 50000 samples (since DAC gathers audio staples at F<sub>s</sub> = 50KHz)/1 sec 
+                        <br><br>
+                        = 6500 samples
+                    </p>
+                    <p>
+                        We can approximate the frequency curve of the “swoop” by a sine wave of the form:
+                    </p>
+                    <p class="math">
+                        F<sub>desire</sub> = F_syn = ksin(m*count_0 + b)
+                    </p>
+                    <p>
+                        but the sine math function is too expensive and using it directly will cause us to miss the timing ISR deadline. We could choose to build another sine look up table to utilize the sine wave approximation, but we decided to go with a simpler quadratic approximation. The frequency curve of the “swoop” also looks like an upward pointing parabola, approximated by the form:
+                    </p>
+                    <p class="math">
+                        F<sub>desire</sub> = F_syn = a(count_0 - h)<sup>2</sup> + k (in vertex form for easier calculation of parameters)
+                    </p>
+                    <p>
+                        And finding unknown parameters a, h, and k by plugging in known points (count_0, F_syn).
+                    </p>
+                    <p>
+                        We can approximate the frequency curve of the “chirp” by a quadratic equation of the form:
+                    </p>
+                    <p class="math">
+                        F<sub>desire</sub> = F_syn = k(count_0)<sup>2</sup> + b
+                    </p>
+                    <p>
+                        and finding unknown parameters k, b, and m by plugging in known points (count_0, F_syn).
+                    </p>
+                    <p>
+                        For “swoop,” it is known from the spectrogram that the curve starts from a frequency of 1740 Hz, raise to a maximum/peak of 2000 Hz at 6500/2 count_0 interrupt sample, and then fall back down to 1740 Hz at 6500 count_0 interrupt sample. The unknown parameter a, h, and k are found by plugging in (0, 1740), (6500/2, 2000), and (6500, 1740), to obtain a = -13/528125, k = 2000, and h = 6500/2. Thus, in vertex form, F<sub>desire</sub> = F_syn = (-13/528125)(count_0 - (6500/2))<sup>2</sup> = 2000.
+                    </p>
+                    <p>
+                        For “chirp,” it is known from the spectrogram that the curve starts from a low frequency of 2000 Hz  and raises to a high frequency of 7000 Hz after 5200 interrupt samples (count_0 start from time 0 to time 5200). The unknown parameter k and b are found by plugging in (0, 2000) and (5200, 7000), to obtain k = 1.18 * 10<sup>-4</sup>, b = 2000. Thus, F<sub>desire</sub> = F_syn = (1.18 * 10<sup>-4</sup>)(count_0)<sup>2</sup> + 2000.
+                    </p>
+                    <p>
+                        We also used matlab to plot the desired frequency formulas to make sure they relatively look like the “swoop” and “chirp” curves of the Northern Cardinal. The “swoop” plot also compares what the curve will look like if approximated by sine wave instead of quadratic.
+                    </p>
+                    <figure>
+                        <img src="./images/fig8.png" alt="Comparison between sine wave approximation and quadratic approximation for “swoop”">
+                        <figcaption><strong>Figure 8.</strong> Comparison between sine wave approximation and quadratic approximation for “swoop”</figcaption>
+                    </figure>
+                    <figure>
+                        <img src="./images/fig9.png" alt="Plot of quadratic approximation for “chirp”">
+                        <figcaption><strong>Figure 9.</strong> Plot of quadratic approximation for “chirp”</figcaption>
+                    </figure>
+                    <p>
+                        The manipulated desire frequency determines the phase incrementor angle to index into the sine lookup table, to send value through the SPI transmit buffer to DAC to produce desire sound via speaker.
+                    </p>
+                    <figure>
+                        <img src="./images/fig10.png" alt="SPI write">
+                        <figcaption><strong>Figure 10.</strong> SPI write</figcaption>
+                    </figure>
+                    <p>
+                        At the beginning of the timer ISR, we set a GPIO high, to signal entering the ISR, and in the end of the ISR, we set the GPIO low to signal leaving the ISR. This allows us to hook up the specified GPIO pin to an oscilloscope, allowing us to measure how long we were in the ISR, verifying that we met the timing requirement.
+                    </p>
+                    <figure>
+                        <img src="./images/fig11.png" alt="ISR timing on oscilloscope">
+                        <figcaption><strong>Figure 11.</strong> ISR timing on oscilloscope</figcaption>
+                    </figure>
+                </div>
+                <h3 class="sub-section-title"><u>Keypad Thread:</u></h3>
+                <div class="section-content">
+                    <p>
+                        Underneath the keyscan code, we implemented a debouncer for key press using a state machine. No matter how long a key is pressed, one sound is produced (“swoop,” “chirp,” or “pause”).
+                    </p>
+                    <p>
+                        The debouncer prevents one key press being interpreted as multiple by adding a buffer cycle. On the first cycle in which the key is pressed, the debouncer transitions(Figure 12) to “Maybe Pressed” state, allowing an extra cycle before the sound is played or mode switched. If, while in the “Maybe Pressed” state, the keypad is still reading the same key press, it will transition to the “Pressed” state, and set a “button_number” or “mode” variable which will control the ISR operation. As long as the keypad reads that the same button is pressed, the state will remain in pressed, preventing multiple occurrences of a button-press action (ex. playing a chirp).  If it does not read the same key press, it will transition to “Maybe Not Pressed,” another buffer cycle. From there, it will transition to “Not Pressed” if the keypad continues to read no button press.
+                    </p>
+                    <figure>
+                        <img src="./images/fig12.png" alt="Debouncing State Machine">
+                        <figcaption><strong>Figure 12.</strong> Debouncing State Machine</figcaption>
+                    </figure>
+                    <figure>
+                        <img src="./images/fig13.png" alt="Keypad Debouncing">
+                        <figcaption><strong>Figure 13.</strong> Keypad Debouncing</figcaption>
+                    </figure>
+                </div>
+                <h3 class="sub-section-title"><u>Playback Thread:</u></h3>
+                <div class="section-content">
+                    <figure>
+                        <img src="./images/fig14.png" alt="Playback thread">
+                        <figcaption><strong>Figure 14.</strong> Playback thread</figcaption>
+                    </figure>
+                    <p>
+                        When entering the playback thread, “in playback_thread” prints on serial monitor, and on-board led is off to indicate being inside playback thread. This helps with debugging our program, ensuring alternation of threads.
+                    </p>
+                    <p>
+                        We did not use a counter to keep track of how many songs are recorded. Instead, we use a for loop to iterate through the recorded_song length 30 array, starting from index 0, producing a song by storing element of current index (“swoop”, “chirp,” or “pause”) to button_number and setting STATE_0 (song production happens in timer ISR), then incrementing to next index and produce that sound, and continue incrementing until reach an empty index, which the for loop breaks. The sleep_us(100) ensures that when sound production is happening (STATE_0 = 0), for loop doesn’t increment and try to produce new song is produced. After breaking from the for loop, with every nonempty index’s element accessed to produce a sound, the array is reset.
+                    </p>
+                    <figure>
+                        <img src="./images/fig15.png" alt="Playback recorded song">
+                        <figcaption><strong>Figure 15.</strong> Playback recorded song</figcaption>
+                    </figure>
+                    <p>
+                        After playback thread finishes running, it signals the keypad thread to run by incrementing the keypad_thread_go_s semaphore. The keypad thread then can scan for new valid keypress.
+                    </p>
+                    <figure>
+                        <img src="./images/fig16.png" alt="Signal keypad thread to run">
+                        <figcaption><strong>Figure 16.</strong> Signal keypad thread to run</figcaption>
+                    </figure>
+                </div>
+                <h3 class="sub-section-title"><u>Hardware:</u></h3>
+                <div class="section-content">
+                    <p>
+                        This project utilizes a Raspberry Pi Pico (RP2040), a digital-to-analog converter (DAC), a button switch (for bootsel) as well as a keypad. Peripheral hardware (keypad and DAC, as well as audio port and bootsel button) are all situated on a breadboard. The keypad, DAC and bootsel button are wired to GPIO pins specified in the provided code, while the audio port is attached to the DAC output and ground.
+                    </p>
+                </div>
+            </section>
+            <section class="project-section" id="result">
+                <h2 class="section-title">Result</h2>
+                <div class="section-content">
+                    <p>
+                        We tested incrementally throughout the three weeks of the lab, meeting all checkoff requirements. The first week we performed testing of the DAC waveform using the oscilloscope (Figure 16), as well as an audial test using the speakers. Additionally, we used a blinking LED to check that the bootsel button worked.
+                    </p>
+                    <figure>
+                        <img src="./images/fig17.jpg" alt="Oscilloscope reading of “beep beep” code through DAC.">
+                        <figcaption><strong>Figure 17.</strong> Oscilloscope reading of “beep beep” code through DAC.</figcaption>
+                    </figure>
+                    <p>
+                        The second week we wired and tested the keypad using provided sample code, then added swoop and chirp functionality to buttons 1 and 2 respectively. We tested the swoop and chirp using oscilloscope and audial verification, as well as using GPIO pin 2 to see the timing of the ISR (Figure 17). All sound primitives spent approximately 130 milliseconds in the ISR.
+                    </p>
+                    <figure>
+                        <table class="project-table">
+                            <thead>
+                                <tr>
+                                    <th>Sound Primitive</th>
+                                    <th>Time in ISR</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Swoop</td>
+                                    <td>130 ms</td>
+                                </tr>
+                                <tr>
+                                    <td>Chirp</td>
+                                    <td>130 ms</td>
+                                </tr>
+                                <tr>
+                                    <td>Pause</td>
+                                    <td>130 ms</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <figcaption><strong>Figure 18.</strong> Table of ISR timing.</figcaption>
+                    </figure>
+                    <p>
+                        The final week, we completed play and record modes, resulting in a fairly convincing bird song imitation. The spectrogram (Figure 18) displays a marked similarity to the Northern Cardinal call which we hoped to imitate.
+                    </p>
+                    <figure>
+                        <img src="./images/fig19.png" alt="Simulated cardinal call">
+                        <figcaption><strong>Figure 19.</strong> Simulated cardinal call</figcaption>
+                    </figure>
+                    <p>
+                        One issue we encountered in lab is that there is a deadlock between our keypad thread and payback thread. We commented out the wait operator after the while(1) loop, to resolve the deadlock.
+                    </p>
+                    <figure>
+                        <img src="./images/fig20.png" alt="Keypad loop">
+                        <figcaption><strong>Figure 20.</strong> Keypad loop</figcaption>
+                    </figure>
+                </div>
+            </section>
+            <section class="project-section" id="conclusion">
+                <h2 class="section-title">Conclusion</h2>
+                <div class="section-content">
+                    <p>
+                        Overall, this project was a successful introduction to the RP2040 and microcontrollers, and we effectively imitated a cardinal’s song. However, if we were to do this lab again, we would try approximating the “swoop” frequency curve as sine functions by utilizing the sine lookup table. We optimized the program by multiplying a value by itself using the multiplication operation instead of the math power function. We can further optimize our program by instead finding its derivatives and using the fundamental theorem of calculus part two. We could also try utilizing the second core on this microcontroller to lift the load per thread. If given more time, we also want to fine-tune our frequency equation more to successfully trick the merlin app.
+                    </p>
+                </div>
+            </section>
+            
+            <section class="project-section" id="work-distribution">
+                <h2 class="section-title">Work Distribution</h2>
+                <div class="section-content">
+                    <p>
+                        <strong>Michelle Yang:</strong>
+                        Wrote most of the code.
+                    </p>
+                    <p>
+                        <strong>Diane Pillsbury:</strong>
+                        Wrote the initial version of the debouncer code (final version of project, debouncer logic replaced by Michelle's implementation).
+                    </p>
+                </div>
+            </section>
+            <section class="project-section" id="citation">
+                <h2 class="section-title">Citation</h2>
+                <div class="section-content citation-text">
+                    <p>
+                        Adams, V. (n.d.). Synthesizing birdsong via direct digital synthesis¶. Birdsong_synthesis. <a href="https://vanhunteradams.com/Pico/Birds/Birdsong_synthesis.html">https://vanhunteradams.com/Pico/Birds/Birdsong_synthesis.html</a>
+                    </p>
+                </div>
+            </section>
+        </article>
+
+    </main>
+    <footer id="footer">
+        <div class="footer-content">
+            <p class="copyright">Copyright © Michelle Yang 2025</p>
+            <div class="footer-icons">
+                <a href="#" class="icon-link" aria-label="LinkedIn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                    </svg>
+                </a>
+                <a href="#" class="icon-link" aria-label="Email">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="4" width="20" height="16" rx="2"/>
+                        <path d="M22 6l-10 7L2 6"/>
+                    </svg>
+                </a>
+                <a href="#" class="icon-link" aria-label="GitHub">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </footer>
+    <script src="./js/script.js"></script>
+</body>
+</html>
