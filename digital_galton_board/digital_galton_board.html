@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Synthesizing Birdsong | Michelle Yang</title>
+    <title>Digital Galton Board | Michelle Yang</title>
     <link rel="icon" type="image/png" href="../images/girl_cat_computer.png">
     <link rel="stylesheet" href="../css/styles.css">
 </head>
@@ -16,10 +16,10 @@
             </div>
             <div class="nav-right">
                 <a class="nav-link active" href="../index.html" target="_blank" rel="noopener noreferrer">Projects</a>
-                <a class="nav-link" href="./synthesizing_birdsong/synthesizing_birdsong.html" target="_blank" rel="noopener noreferrer">Notes</a>
-                <a class="nav-link" href="./synthesizing_birdsong/synthesizing_birdsong.html" target="_blank" rel="noopener noreferrer">Blog</a>
-                <a class="nav-link" href="./synthesizing_birdsong/synthesizing_birdsong.html" target="_blank" rel="noopener noreferrer">About</a>
-                <a class="nav-link" href="./synthesizing_birdsong/synthesizing_birdsong.html" target="_blank" rel="noopener noreferrer">Others</a>
+                <a class="nav-link" href="../notes.html" target="_blank" rel="noopener noreferrer">Notes</a>
+                <a class="nav-link" href="../blog.html" target="_blank" rel="noopener noreferrer">Blog</a>
+                <a class="nav-link" href="../about.html" target="_blank" rel="noopener noreferrer">About</a>
+                <a class="nav-link" href="../others.html" target="_blank" rel="noopener noreferrer">Others</a>
             </div>
         </nav>
     </header>
@@ -27,20 +27,24 @@
     <main id="main-content">
         <article class="project-article" id="top">
             <header class="project-header">
-                <h1 class="project-main-title">Synthesizing Birdsong</h1>
+                <h1 class="project-main-title">Digital Galton Board</h1>
             </header>
             <figure class="project-hero">
                 <div class="project-hero-media">
-                    <iframe width="560" height="315" src="https://www.youtube.com/embed/IXEofso0_44?si=MK0IOiRm1RZ1r-kY" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+                    <iframe width="560" height="315" src="" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
                 </div>
-                <figcaption class="project-hero-caption">Synthesizing Birdsong with Raspberry Pi Pico Demonstration Video (my phone got pit-pocket...lost the video QAQ!! need to record a new one!)</figcaption>
+                <figcaption class="project-hero-caption">Digital Galton Board with Raspberry Pi Pico Demonstration Video (The video is lost because my phone got pickpocketed. I need to record a new one!)</figcaption>
             </figure>
             <section class="project-section" id="introduction">
                 <h2 class="section-title">Introduction</h2>
                 <div class="section-content">
                     <p>
-                        The goal was to design a bird song synthesizer that synthesizes one of the most common songs of the northern cardinal on a Raspberry Pi Pico with the RP2040 processor. We use direct digital synthesis to generate a pure sine wave “beep,” then amplitude modulate the beep to produce “swoop” and “chirp,” in an attempt to trick Cornell Ornithology’s Merlin Bird ID App. We control the synthesizer with a keypad, to associate pressing button 1 with “chirp,” button 2 with “swoop,” button 3 with “silence,” and developed record and playback modes (interface by pressing button 4 and 5 respectively) to capture and reproduce the song sequence with precise timing.
+                        We designed and built a digital Galton board, a traditional game involving a ball or balls sent through a series of rows of pegs. This project involved a number of challenges, such as modelling real-world collision physics, VGA graphics display using VGA, and sound generation. Synthesizing the diverse aspects of the project in code and hardware was a key component of this project, especially timing optimization.  Our system animates hundreds to thousands of balls at ~30 frames per second using fixed-point arithmetic for real-time physics, a VGA pipeline for display, and DMA triggered audio to produce a brief “thunk” sound on peg impacts without interrupts overhead. Hardware was added to provide additional features and adjust parameters. A potentiometer provides a simple, low-latency interface to tune parameters, in this case ball count and coefficient of restitution. We also overclock the microcontroller and apply optimization throughout, to increase the number of balls which can be modeled simultaneously without sacrificing the frames per second. Furthermore, we plot a live histogram which converges towards the Gaussian predicted by the CLT (Central Limit Theorem) as rows and trials increase. In this Lab report, we will discuss our hardware model, histogram generation, physics behind our implementation, optimization and results.
                     </p>
+                    <figure>
+                        <img src="./images/fig1.png" alt="Five-row idealized Galton Board with balls collected at bins to form a binomial distribution">
+                        <figcaption><strong>Figure 1.</strong> Five-row idealized Galton Board with balls collected at bins to form a binomial distribution (Source: <a href="https://vanhunteradams.com">https://vanhunteradams.com</a>)</figcaption>
+                    </figure>
                 </div>
             </section>
             <section class="project-section" id="design">
@@ -48,235 +52,380 @@
                 <h3 class="sub-section-title"><u>General:</u></h3>
                 <div class="section-content">
                     <p>
-                        In the main part of the program, we initialized the serial interface, map the GPIO ports to the DAC pins, the GPIO ports to the on-board LED (for signaling entering protothread later on), set up the timing ISR, pre-calculate the bow envelope increments, build the sine lookup table, initialize the keypad, and identified 2 functions, photothread_core_0 (keypad thread) and protothread_playback to scheduler.
+                        Our program consists of a main function to be run at boot and two protothreads, for simulation updates and VGA animation, respectively. In the main part of the program, we brought the system from the initial circuit to a stable, interactive demo of the Galton Board. We configured the higher system clock to sustain ~30fps, initialized the PIO-driven VGA pipeline to provide a 640x480 screen, and connected the user physical controls using the potentiometer and denouncing the push button to switch modes between ball count and bounciness. We also integrated a precomputed “thunk” sound,which will be output by a speaker when the ball hits the peg. DMA channels were used to send this to the DAC and speaker over SPI, so the audio feedback wouldn’t interfere with rendering or causing overclocking.
                     </p>
                     <p>
-                        The bow envelop calculation is needed to slowly ramp up and down the sinewave, to prevent high frequency “pops” and “clicks” in the generated speaker output sound. The sine lookup table produce values between 0 and 4096 (2^16), the range of data the DAC will receive. The sine lookup table will be index into when performing direct digital synthesis in the timer ISR.
+                        The runtime was split into two threads. One is for animation, which draws and erases the balls, pegs, text, and histogram. It renders the 16 rows of pegs and updates fixed-point physics. Additionally, we aligned a right-side histogram of 17 bins (0–16) to match the 16-row board’s chutes, and count each ball exactly once below a finish line near the bottom, scaling bar heights to the current maximum.We verified the behavior of our protothreads by checking the raspberry Pi’s onboard LED light to see if it passes timing. If not, it will flag the missed deadlines during tests. We also needed to verify the VGA and potentiometer was functional.
                     </p>
-                    <figure>
-                        <img src="./images/fig1.png" alt="Set up increment for bow envelope and sine loopup table">
-                        <figcaption><strong>Figure 1.</strong> Set up increment for bow envelope and sine loopup table</figcaption>
-                    </figure>
                     <p>
-                        In the main, the timer interrupt is enabled, associated with its interrupt handler function, and armed for the first time by writing the lower 32 bits of the target time (DELAY time passed current time) to the alarm register.
+                        For validation, we first confirmed that VGA sync remained stable under load. The on-board LED correctly flagged frame deadline misses during stress tests, including maximums of 3000, 4000, or even 100000 balls. The potentiometer produced smooth, real-time adjustments in both modes, and mode-cycling was reliable after debouncing. Finally, the collision “thunk” triggered cleanly without jitter or lag, even with many balls on screen.
                     </p>
-                    <figure>
-                        <img src="./images/fig2.png" alt="Timer IRQ Setup">
-                        <figcaption><strong>Figure 2.</strong> Timer IRQ Setup</figcaption>
-                    </figure>
-                    <p>
-                        To interface with the keypad, all 7 keypad buttons are inialize with corresponding GPIO pins. The row pins are set to output and are connected in series with external 330 ohms pull down resistors, and column pins are set to input with internal pulldown resistors turn on.
-                    </p>
-                    <figure>
-                        <img src="./images/fig3.png" alt="Keypad Initialize">
-                        <figcaption><strong>Figure 3.</strong> Keypad Initialize</figcaption>
-                    </figure>
-                    <p>
-                        Two core-safe (although only core 0 is utilitized) semaphores are used to ensure the precise alternation between the keypad thread and the playback thread. These semaphores are initializefd before starting either of the two proto-threads (keypad thread and playback thread). Since we want the keypad thread to run automatically when program reboot, we set the keypad_thread_go_s initial count to 1,  and the playback_thread_go_s initial count to 0, to block the playback thread while the keypad thread runs. If a song is recorded (the recorded_song length 30 array is not empty) and the playback button is pressed, the keypad thread signals the playback thread (increment playback_thread_go_s semaphore) to playback the recorded song, and after the playback thread finish reproducing all the songs (by sending array’s stored button press to timer ISR)  and resets the array, the playback thread signals back to the keypad thread (increment keypad_thread_go_s semaphore) to starting scanning for valid keys again.  At the end of main, we start the scheduler to schedule the core 0 threads (keypad thread and playback thread).
-                    </p>
-                    <figure>
-                        <img src="./images/fig4.png" alt="Semaphore initialize, add threads to scheduler, start scheduler">
-                        <figcaption><strong>Figure 4.</strong> Semaphore initialize, add threads to scheduler, start scheduler</figcaption>
-                    </figure>
                 </div>
                 
-                <h3 class="sub-section-title"><u>Timer ISR:</u></h3>
+                <h3 class="sub-section-title"><u>Collision Physics:</u></h3>
                 <div class="section-content">
                     <p>
-                        We first combined the audio beep-beep demo code with the keypad demo code to associate a button press on the keypad with the production of a pure sine wave “beep.” The beep-beep demo code fires an interrupt once per second, generating a 400 Hz beep through an SPI DAC. We removed the state transition else statement from the  beep-beep ISR to prevent repeated “beep” production. When a button press, a sound is generated (in state 0) , then the state transitions to state 1, and stays in state 1 until another valid button press.
+                        A key component was accurately modelling collision physics. For purposes of simplicity, we only modeled collisions between balls and pegs, not between balls, ie. collisions between a moving and stationary object.
+                    </p>
+                    <p>
+                        We used the equation for change in velocity derived in the “The physics of colliding balls, with coefficient of restitution” webpage (figure X), where mass M of the peg is infinite and the vectors rm and rM represent the positions of the centers of mass of the peg and ball in question.
                     </p>
                     <figure>
-                        <img src="./images/fig5.png" alt="Removed state transition">
-                        <figcaption><strong>Figure 5.</strong> Removed state transition</figcaption>
+                        <img src="./images/fig2.png" alt="Equation for a ball bouncing off a stationary peg">
+                        <figcaption><strong>Figure 2.</strong> Equation for a ball bouncing off a stationary peg (Source: <a href="https://vanhunteradams.com">https://vanhunteradams.com</a>)</figcaption>
                     </figure>
                     <p>
-                        “The song of a northern cardinal can be decomposed into three sound primitives: a low-frequency swoop at the beginning of each call, a chirp after each swoop which moves rapidly from low frequency to high frequency, and silence which separates each swoop/chirp combination” (Synthesizing Birdsong via Direct Digital Synthesis webpage).
+                        In the code, we created a variable “distance” representing the difference in positions between the peg and the ball, as well as variables “normal_x” and “normal_y” representing the portions of this distance in the x and y directions. These are then used to calculate the change in velocity for the x and y directions.
+                    </p>
+                    <p>
+                        Additional actions are performed to account for issues arising in the simulation which differ from real-world physics. For instance, since updates to the simulation occur at a granular time scale, instead of continuously as in real physics, sometimes the ball would move inside the perimeter of a peg. As a result, we needed to include code which “teleports” the ball back outside of the peg upon update. Additionally, we had to add a line of code to apply gravity to the y velocity on each cycle.
+                    </p>
+                    <p>
+                        Further, we decreased velocity by multiplying by a “bounciness” coefficient to simulate the coefficient of restitution. This takes into account energy lost to sound, vibration, and heat in collisions which are not perfectly elastic.
                     </p>
                     <figure>
-                        <img src="./images/fig6.png" alt="Spectogram of Northern Cardinal song">
-                        <figcaption><strong>Figure 6.</strong> Spectogram of Northern Cardinal song</figcaption>
-                    </figure>
-                    <p>
-                        Using if-else statements, we associate button press with the desired sound. If button 1 is pressed, produce a “swoop” sound. If button 2 is pressed, produce a “chirp” sound. If button 3 is pressed, produce a silent “pause” sound.
-                    </p>
-                    <figure>
-                        <img src="./images/fig7.png" alt="Associate button press with desire synthesize frequency">
-                        <figcaption><strong>Figure 7.</strong> Associate button press with desire synthesize frequency</figcaption>
-                    </figure>
-                    <p>
-                        We set the phase incrementor angle to index into the sine lookup table, to obtain a value to send to the DAC, to produce our desired sound. We observe from the spectrogram that the “swoop” of the song looks like the first half of the sine-wave, the “chirp” of the song looks like the second half of an upward parabola, and the “silence” of the song is a constant frequency of 0. We found the desired frequency function with count_0 as the dependent variable for the “swoop” and “chirp.”
-                    </p>
-                    <p>
-                        Note that the length of these sound primitives are 130ms, so they all last for:
-                    </p>
-                    <p class="math">
-                        0.130 sec ⋅ 50000 samples (since DAC gathers audio staples at F<sub>s</sub> = 50KHz)/1 sec 
-                        <br><br>
-                        = 6500 samples
-                    </p>
-                    <p>
-                        We can approximate the frequency curve of the “swoop” by a sine wave of the form:
-                    </p>
-                    <p class="math">
-                        F<sub>desire</sub> = F_syn = ksin(m*count_0 + b)
-                    </p>
-                    <p>
-                        but the sine math function is too expensive and using it directly will cause us to miss the timing ISR deadline. We could choose to build another sine look up table to utilize the sine wave approximation, but we decided to go with a simpler quadratic approximation. The frequency curve of the “swoop” also looks like an upward pointing parabola, approximated by the form:
-                    </p>
-                    <p class="math">
-                        F<sub>desire</sub> = F_syn = a(count_0 - h)<sup>2</sup> + k (in vertex form for easier calculation of parameters)
-                    </p>
-                    <p>
-                        And finding unknown parameters a, h, and k by plugging in known points (count_0, F_syn).
-                    </p>
-                    <p>
-                        We can approximate the frequency curve of the “chirp” by a quadratic equation of the form:
-                    </p>
-                    <p class="math">
-                        F<sub>desire</sub> = F_syn = k(count_0)<sup>2</sup> + b
-                    </p>
-                    <p>
-                        and finding unknown parameters k, b, and m by plugging in known points (count_0, F_syn).
-                    </p>
-                    <p>
-                        For “swoop,” it is known from the spectrogram that the curve starts from a frequency of 1740 Hz, raise to a maximum/peak of 2000 Hz at 6500/2 count_0 interrupt sample, and then fall back down to 1740 Hz at 6500 count_0 interrupt sample. The unknown parameter a, h, and k are found by plugging in (0, 1740), (6500/2, 2000), and (6500, 1740), to obtain a = -13/528125, k = 2000, and h = 6500/2. Thus, in vertex form, F<sub>desire</sub> = F_syn = (-13/528125)(count_0 - (6500/2))<sup>2</sup> = 2000.
-                    </p>
-                    <p>
-                        For “chirp,” it is known from the spectrogram that the curve starts from a low frequency of 2000 Hz  and raises to a high frequency of 7000 Hz after 5200 interrupt samples (count_0 start from time 0 to time 5200). The unknown parameter k and b are found by plugging in (0, 2000) and (5200, 7000), to obtain k = 1.18 * 10<sup>-4</sup>, b = 2000. Thus, F<sub>desire</sub> = F_syn = (1.18 * 10<sup>-4</sup>)(count_0)<sup>2</sup> + 2000.
-                    </p>
-                    <p>
-                        We also used matlab to plot the desired frequency formulas to make sure they relatively look like the “swoop” and “chirp” curves of the Northern Cardinal. The “swoop” plot also compares what the curve will look like if approximated by sine wave instead of quadratic.
-                    </p>
-                    <figure>
-                        <img src="./images/fig8.png" alt="Comparison between sine wave approximation and quadratic approximation for “swoop”">
-                        <figcaption><strong>Figure 8.</strong> Comparison between sine wave approximation and quadratic approximation for “swoop”</figcaption>
-                    </figure>
-                    <figure>
-                        <img src="./images/fig9.png" alt="Plot of quadratic approximation for “chirp”">
-                        <figcaption><strong>Figure 9.</strong> Plot of quadratic approximation for “chirp”</figcaption>
-                    </figure>
-                    <p>
-                        The manipulated desire frequency determines the phase incrementor angle to index into the sine lookup table, to send value through the SPI transmit buffer to DAC to produce desire sound via speaker.
-                    </p>
-                    <figure>
-                        <img src="./images/fig10.png" alt="SPI write">
-                        <figcaption><strong>Figure 10.</strong> SPI write</figcaption>
-                    </figure>
-                    <p>
-                        At the beginning of the timer ISR, we set a GPIO high, to signal entering the ISR, and in the end of the ISR, we set the GPIO low to signal leaving the ISR. This allows us to hook up the specified GPIO pin to an oscilloscope, allowing us to measure how long we were in the ISR, verifying that we met the timing requirement.
-                    </p>
-                    <figure>
-                        <img src="./images/fig11.png" alt="ISR timing on oscilloscope">
-                        <figcaption><strong>Figure 11.</strong> ISR timing on oscilloscope</figcaption>
+                        <img src="./images/fig3.png" alt="Excerpt from code modeling ball-peg collision.">
+                        <figcaption><strong>Figure 3.</strong> Excerpt from code modeling ball-peg collision.</figcaption>
                     </figure>
                 </div>
-                <h3 class="sub-section-title"><u>Keypad Thread:</u></h3>
+                <h3 class="sub-section-title"><u>Statistical Analysis</u></h3>
                 <div class="section-content">
                     <p>
-                        Underneath the keyscan code, we implemented a debouncer for key press using a state machine. No matter how long a key is pressed, one sound is produced (“swoop,” “chirp,” or “pause”).
+                        In an ideal case, a Galton Board will result in a Gaussian distribution. This relies on the assumption that all ball bounces’ directions (left or right) are completely independent of all previous bounce results, and identically distributed between each side of the peg (a 50% chance of bouncing left or right). However, in our simulation, we attempted to model a nonideal, real-world Galton Board. In this model, the direction each ball hits the peg is dependent on how it hit and bounced off the previous peg, both removing independence and identical Bernoulli distribution.  However, as a large number of balls are dropped, due the CLT generalization for mixing processes, the board approaches a Gaussian anyways, since as a ball continues to bounce, earlier rows’ bounces become less important. As a result, Galton Boards with more rows better approximate a Gaussian distribution.
                     </p>
                     <p>
-                        The debouncer prevents one key press being interpreted as multiple by adding a buffer cycle. On the first cycle in which the key is pressed, the debouncer transitions(Figure 12) to “Maybe Pressed” state, allowing an extra cycle before the sound is played or mode switched. If, while in the “Maybe Pressed” state, the keypad is still reading the same key press, it will transition to the “Pressed” state, and set a “button_number” or “mode” variable which will control the ISR operation. As long as the keypad reads that the same button is pressed, the state will remain in pressed, preventing multiple occurrences of a button-press action (ex. playing a chirp).  If it does not read the same key press, it will transition to “Maybe Not Pressed,” another buffer cycle. From there, it will transition to “Not Pressed” if the keypad continues to read no button press.
+                        Our model, with sixteen rows and seventeen bins, had an ideal mean of eight (the middle bin in the seventeen-bin histogram), and a standard deviation of 2.06.
                     </p>
                     <figure>
-                        <img src="./images/fig12.png" alt="Debouncing State Machine">
-                        <figcaption><strong>Figure 12.</strong> Debouncing State Machine</figcaption>
-                    </figure>
-                    <figure>
-                        <img src="./images/fig13.png" alt="Keypad Debouncing">
-                        <figcaption><strong>Figure 13.</strong> Keypad Debouncing</figcaption>
+                        <img src="./images/fig4.png" alt="Equations for mean and standard deviation">
+                        <figcaption><strong>Figure 4.</strong> Equations for mean and standard deviation (Source: <a href="https://vanhunteradams.com">https://vanhunteradams.com</a>)</figcaption>
                     </figure>
                 </div>
-                <h3 class="sub-section-title"><u>Playback Thread:</u></h3>
+                <h3 class="sub-section-title"><u>Potentiometer Adjusted Parameters:</u></h3>
                 <div class="section-content">
-                    <figure>
-                        <img src="./images/fig14.png" alt="Playback thread">
-                        <figcaption><strong>Figure 14.</strong> Playback thread</figcaption>
-                    </figure>
                     <p>
-                        When entering the playback thread, “in playback_thread” prints on serial monitor, and on-board led is off to indicate being inside playback thread. This helps with debugging our program, ensuring alternation of threads.
-                    </p>
-                    <p>
-                        We did not use a counter to keep track of how many songs are recorded. Instead, we use a for loop to iterate through the recorded_song length 30 array, starting from index 0, producing a song by storing element of current index (“swoop”, “chirp,” or “pause”) to button_number and setting STATE_0 (song production happens in timer ISR), then incrementing to next index and produce that sound, and continue incrementing until reach an empty index, which the for loop breaks. The sleep_us(100) ensures that when sound production is happening (STATE_0 = 0), for loop doesn’t increment and try to produce new song is produced. After breaking from the for loop, with every nonempty index’s element accessed to produce a sound, the array is reset.
+                        Users interact with an external button and a potentiometer to adjust the parameters of the Galton board (refer to the hardware diagram below for the setup). Upon boot, the program initializes in "mode 0," where the maximum number of balls that can be animated at 30 frames per second are dropped and the “bounciness” coefficient is set to a default value of 0.5. In "mode 0," adjusting the potentiometer does not affect any parameters, including the number of balls dropped or their bounciness.
                     </p>
                     <figure>
-                        <img src="./images/fig15.png" alt="Playback recorded song">
-                        <figcaption><strong>Figure 15.</strong> Playback recorded song</figcaption>
+                        <img src="./images/fig5.png" alt="Animation thread, before while loop, call to spawnBall to drop MAX_BALLS at boot">
+                        <figcaption><strong>Figure 5.</strong> Animation thread, before while loop, call to spawnBall to drop MAX_BALLS at boot</figcaption>
                     </figure>
                     <p>
-                        After playback thread finishes running, it signals the keypad thread to run by incrementing the keypad_thread_go_s semaphore. The keypad thread then can scan for new valid keypress.
+                        When the user presses the external button once, the program transitions to "mode 1." In this mode, adjusting the potentiometer changes the number of balls dropped. Pressing the button a second time switches the program to "mode 2," where turning the potentiometer modifies the bounciness of the balls. Pressing the button once more returns the program to "mode 0." Repeated button presses cycle through all modes: 0, 1, and 2.
+                    </p>
+                    <p>
+                        In the program main, the external button is connected to GPIO 15. It is set as a GPIO input, with the internal pull-up resistor on.
                     </p>
                     <figure>
-                        <img src="./images/fig16.png" alt="Signal keypad thread to run">
-                        <figcaption><strong>Figure 16.</strong> Signal keypad thread to run</figcaption>
+                        <img src="./images/fig6.png" alt="External button set up">
+                        <figcaption><strong>Figure 6.</strong> External button set up</figcaption>
                     </figure>
+                    <p>
+                        In the global scope, we declared an integer variable “mode” and initialized it to 0 to indicate that the program is booting into “mode 0.”
+                    </p>
+                    <p>
+                        Inside the while loop of the parameter update thread (originally the user serial input thread in the original animation.c demo code), we first evaluate which mode we are currently in. These conditional statements determine how the potentiometer input is interpreted. In mode 0, the potentiometer input is ignored.
+                    </p>
+                    <p>
+                        In mode 1, we scale the raw ADC reading from the potentiometer to control the number of balls dropped in the animation. On the RP2040, as with most microcontrollers, the ADC is a 12-bit converter, producing raw digital values between 0 and 4095 (212 - 1). The raw ADC value returned by adc_read() is first converted to a floating-point number and divided by 4095.0 to normalize it to a range of 0.0 to 1.0, representing the input voltage fraction. This normalized value is then multiplied by the maximum number of balls (2000 in the image below) and truncated to an integer, giving a final value between 0 and 2000 that specifies how many balls should be dropped.
+                    </p>
+                    <figure>
+                        <img src="./images/fig7.png" alt="Mode 1, potentiometer value scales to control the ball drop number">
+                        <figcaption><strong>Figure 7.</strong> Mode 1, potentiometer value scales to control the ball drop number</figcaption>
+                    </figure>
+                    <p>
+                        In mode 2, the same ADC reading from the potentiometer input is used, but this time it controls the bounciness parameter in the collision physics. The raw ADC value is first normalized by dividing by 4095, producing a floating-point value between 0.0 and 1.0. This normalized value is then multiplied by the maximum bounciness (set to 1.0) and converted to a fix15 fixed-point format (with 16 integer bits and 15 fractional bits). The resulting fixed-point value, ranging from 0 to 1 with 15-bit fractional resolution, determines how elastic the ball collisions are in the simulation.
+                    </p>
+                    <figure>
+                        <img src="./images/fig8.png" alt="Mode 2, potentiometer value scales to control ball bounciness">
+                        <figcaption><strong>Figure 8.</strong> Mode 2, potentiometer value scales to control ball bounciness</figcaption>
+                    </figure>
+                    <p>
+                        When displaying the bounciness value on the VGA screen, the 15-bit fractional precision is truncated to show only two decimal places for readability.
+                    </p>
+                    <figure>
+                        <img src="./images/fig9.png" alt="VGA display of the bounciness of balls">
+                        <figcaption><strong>Figure 9.</strong> VGA display of the bounciness of balls</figcaption>
+                    </figure>
+                    <p>
+                        Button press detection occurs within the same thread. Multiple button presses may be caused by the bouncing of pressing a physical button, creating a short period of unstable inputs (rapid switching from high voltage to low voltage) to the GPIO. A hardware solution to this issue involves adding a resistor and a capacitor to create a low-pass filter that smooths the signal. However, we chose to implement a software solution by employing a finite state machine debouncing algorithm, which introduces a buffer cycle to stabilize the button input. We added the debouncer state machine we implemented in Lab 1, the bird song synthesizing lab, and made some modifications to better suit our needs.
+                    </p>
+                    <figure>
+                        <img src="./images/fig10.png" alt="Button press detection">
+                        <figcaption><strong>Figure 10.</strong> Button press detection</figcaption>
+                    </figure>
+                    <figure>
+                        <img src="./images/fig11.png" alt="Debouncing state machine">
+                        <figcaption><strong>Figure 11.</strong> Debouncing state machine</figcaption>
+                    </figure>
+                    <p>
+                        After the button press stabilizes, we increase the global counter, button_press_count, by 1. The program then checks the counter to decide which mode to activate. On the first button press, mode is set to 1. On the second button press, the mode is set to 2. On the third button press, mode is returned to mode 0. Each button press advances the program to the next mode in sequence, cycling through modes 0, 1, and 2.
+                    </p>
+                    <figure>
+                        <img src="./images/fig12.png" alt="Cycling through modes">
+                        <figcaption><strong>Figure 12.</strong> Cycling through modes</figcaption>
+                    </figure>
+                    <p>
+                        After cycling through all three modes, the button_press_count counter resets to zero so that subsequent presses continue the sequence.
+                    </p>
+                    <p>
+                        Finally, the current debounce state is stored in a variable called DEBOUNCE_STATE_PREV to ensure accurate detection of the next button transition.
+                    </p>
+                </div>
+                <h3 class="sub-section-title"><u>Respawning of Balls:</u></h3>
+                <div class="section-content">
+                    <p>
+                        When the program operates in mode 1, twisting the potentiometer adjusts the number of balls actively dropping in the animation. The ADC reading from the potentiometer is scaled and stored in the variable “potentiometer_value,” which represents the desired number of balls to be dropped. The program continually compares this value with “num_balls,” which tracks the number of balls currently being animated and scheduled for respawn.
+                    </p>
+                    <p>
+                        If the user turns the potentiometer to increase the number of balls, the program dynamically spawns additional balls until the current count matches the potentiometer setting. Conversely, if the potentiometer is turned to reduce the count, the program stops respawning the excess balls once they fall off the screen.
+                    </p>
+                    <p>
+                        The logic governing the spawning and removal of the balls can be summarized in the following pseudocode:
+                    </p>
+                    <pre>
+                        <code>
+                            num_balls = number of balls to be spawned/go through collision physics
+
+                            Potentiometer_value = desired drop ball value
+
+                            Current_num_balls = actual number of balls already animated/respawned
+
+                            If potentiometer_value > num_balls:
+
+                                    Spawn more balls
+
+                                    Update num_balls
+
+                            If potentiometer_value < num_balls:
+
+                                    Remove extra balls by not respawning them        
+
+                            Extra or excess balls = (current_num_balls > potentiometer value)
+
+                        </code>
+                    </pre>
+                    <p>
+                        To implement this behavior, we first structured the program so that each ball instance is processed in the ballCollidePeg() function, which takes the ball’s position, velocity, and index in the ball_coordinate array as parameters.
+                    </p>
+                    <figure>
+                        <img src="./images/fig13.png" alt="Call to ballCollidePeg from animation thread">
+                        <figcaption><strong>Figure 13.</strong> Call to ballCollidePeg from animation thread</figcaption>
+                    </figure>
+                    <p>
+                        At the global scope, a Boolean array is declared to track whether each ball has already been counted in the histogram after reaching the bottom of the screen. The index i of each ball corresponds directly to the index in the counted array (ball_coordinate array and counted array both of length MAX_BALLS), which also determines whether that ball is eligible for respawn.
+                    </p>
+                    <figure>
+                        <img src="./images/fig14.png" alt="Boolean array of which balls have been counted">
+                        <figcaption><strong>Figure 14.</strong> Boolean array of which balls have been counted</figcaption>
+                    </figure>
+                    <p>
+                        At the end of the collision update, ballCollidePeg() calls wallsAndEdges(), passing in the ball’s identifier, index i in the ball_coordinate array. The wallsAndEdges() function handles left and right wall collision detection, updating ball positions and velocity after hitting a left or right wall (bounded by screen width), and determines whether to respawn any balls that fall through the bottom of the screen.
+                    </p>
+                    <figure>
+                        <img src="./images/fig15.png" alt="Call to wallsAndEdges from ballCollidePeg()">
+                        <figcaption><strong>Figure 15.</strong> Call to wallsAndEdges from ballCollidePeg()</figcaption>
+                    </figure>
+                    <p>
+                        Within wallsAndEdges(), when a ball reaches the bottom of the screen (hitBottom(*y) returns true), the program resets the ball’s counted[i] flag and determines whether the ball should be respawned.
+                    </p>
+                    <p>
+                        If the ball’s index i is less than the potentiometer value, it is respawned by calling spawnBall(), ensuring that only the desired number of balls remain in the animation. When the potentiometer_value exceeds num_balls, new balls are spawned in a loop from num_balls up to potentiometer_value, dynamically increasing the total number of animated balls. Conversely, if the potentiometer_value is less than num_balls, the excess balls are erased from the screen using drawRect() with color set to BLACK, and are not respawned. Each ball instance checks its index i relative to the current loop iteration to determine whether it should respawn. Finally, num_balls is adjusted to reflect the current number of balls to be animated and respawned in the animation.
+                    </p>
+                    <figure>
+                        <img src="./images/fig16.png" alt="Code for respawning balls">
+                        <figcaption><strong>Figure 16.</strong> Code for respawning balls</figcaption>
+                    </figure>
+                </div>
+                <h3 class="sub-section-title"><u>Histogram Generation:</u></h3>
+                <div class="section-content">
+                    <p>
+                        The histogram was generated by converting each ball’s final horizontal position into a discrete bin and then incrementing that bin’s count to be exactly 1. When a ball crosses a fixed line near the bottom of the display, I map its x-coordinate to a bin index by subtracting the leftmost bar’s x origin (HIST_START_X) and then dividing it by the constant chute spacing (HORIZONTAL_SPACING). This yields an integer index from 0–16 which gives 17 bins for a 16-row array (values outside 0–16 are ignored). To avoid double counting in the later frames, we set counted[i] = true right after incrementing the bin (and reset it on respawn). Drawing happens each frame in drawHist(): for each bin i, I compute a proportional height h = (int)((float)50 * fix2float15(hist_data[i]) / fix2float15(hist_highest)); and paint a bar using the fillRect function, then clear the space above the bar to prevent ghosting. The histogram is rendered every frame by scaling each of the bin’s counts to a fixed pixel height using the largest observed bin as a reference. This helps keep the chart more readable and stable as more balls come into the frame. The count of the ball is maintained in integer form for stats and also stored as a fixed-point (fix15) copy for the drawing routine, which matches the lab’s real-time VGA constraints.
+                    </p>
+                </div>
+                <h3 class="sub-section-title"><u>VGA Text Display:</u></h3>
+                <div class="section-content">
+                    <p>
+                        Our VGA screen displays:
+                    </p>
+                    <ul class="list">
+                        <li>Current mode of the program</li>
+                        <li>Current number of balls being animated</li>
+                        <li>Total number of balls that have fallen through the board since boot</li>
+                        <li>Bounciness of the balls</li>
+                        <li>Time since boot</li>
+                    </ul>
+                    <figure>
+                        <img src="./images/fig17.png" alt="VGA text display">
+                        <figcaption><strong>Figure 17.</strong> VGA text display</figcaption>
+                    </figure>
+                    <p>
+                        These values update continuously within the animation loop on core 0, ensuring that the display reflects the most recent simulation state. Later, when optimizing the code, some values are updated and displayed less frequently if the values are updated less frequently. 
+                    </p>
+                    <figure>
+                        <img src="./images/fig18.png" alt="VGA text update in core 0 animation thread">
+                        <figcaption><strong>Figure 18.</strong> VGA text update in core 0 animation thread</figcaption>
+                    </figure>
+                    <p>
+                        Before each frame update, a black rectangle is drawn over the text area using fillRect() to clear any previous text, preventing overlap from prior frame updates. The setCursor() function from the vga16_graphics_v2 driver positions where the text will display on the screen. writeString() draws the text to the screen.
+                    </p>
+                    <p>
+                        To measure the elapsed time since boot, the function time_us_32() is called at the beginning of each animation loop iteration. This function returns the number of microseconds since the program started running the RP2040, allowing us to monitor frame timing. Begin_time stores this timestamp, and the frame_elapsed variable counts the number of frames that have been drawn since startup, tracking total animation duration.
+                    </p>
+                </div>
+                <h3 class="sub-section-title"><u>Sound Generation:</u></h3>
+                <div class="section-content">
+                    <p>
+                        Each time a ball hits a peg, a “thunk” sound must be generated. To this end, the RP2040 is wired to a digital-to-analog converter (DAC), which sends an output signal to a speaker. The RP2040 communicates with the DAC using Serial Peripheral Interface (SPI) channels. In SPI communication, data is shifted from the “main” device into a “secondary” device, and vice versa.
+                    </p>
+                    <p>
+                        Since the collision math as well as the VGA display require as much time as possible in the CPU, Direct Memory Access (DMA) channels were used to directly transfer data from memory to the SPI data register port. For this project, we used two DMA channels, for control and data respectively. The control channel is used to fetch the sound data, and is chained to the data channel, which sends the data to SPI. The DMA channel mask function is called during the animation protothread; no calculations are made, and the data is sent to the SPI port without significantly impacting timing.
+                    </p>
+                    <p>
+                        To make the “thunk” sound, we created a table of data to model a sine wave, to be progressively sent to the DAC. Additionally, we did not ramp the sine wave, since the popping sound artifact, which usually must be removed for smooth sound generation, is in this case desirable, as it sounds remarkably like a thunking noise.
+                    </p>
                 </div>
                 <h3 class="sub-section-title"><u>Hardware:</u></h3>
                 <div class="section-content">
                     <p>
-                        This project utilizes a Raspberry Pi Pico (RP2040), a digital-to-analog converter (DAC), a button switch (for bootsel) as well as a keypad. Peripheral hardware (keypad and DAC, as well as audio port and bootsel button) are all situated on a breadboard. The keypad, DAC and bootsel button are wired to GPIO pins specified in the provided code, while the audio port is attached to the DAC output and ground.
+                        Our system runs on the RP2040 and drives a 640x480 VGA display while sampling a potentiometer, reading a push-button, blinking the on-board LED, and outputting a short “thunk” sound via an DAC using DMA and SPI communication. We clock the MCU to 250 MHz to maintain ~30 fps with many balls in flight.
+                    </p>
+                    <p>
+                        VGA output uses the lab’s PIO-driven pipeline and a simple resistor DAC. The pins follow the template in our code header: GPIO16, GPIO17, GPIO18/19, GPIO20, and GPIO21, with VGA ground tied to RP2040 GND. PIO state machines handle HS/VS and pixel timing while DMA streams pixel data, so the CPU can focus on physics and displaying each frame. The button does not control the state machines physically but instead it cycles modes in software, where mode 0 is the baseline, mode 1 potentiometer adjusts ball count, and mode 2 potentiometer adjusts bounciness. The on board LED serves as a frame deadline indicator in case it doesn’t support the 30 fps anymore.
+                    </p>
+                    <p>
+                        Audio for the “thunk” is precomputed into a 256-sample table and sent to an SPI DAC using a two-channel DMA setup to avoid interrupts. We use SPI0 on GPIO5, GPIO6, and GPIO7; GPIO4 is configured by SPI but unused by the DAC. A timer-paced throttles the data DMA so playback occurs at a fixed rate, and a small control DMA transfers arms each burst. On each validated peg collision, we trigger the control channel to play a single thunk cleanly without impacting frame timing.
+                    </p>
+                    <p>
+                        The potentiometer provides real-time control without interrupts. It is wired to ADC0 on GPIO26, and we initialize it with adc_init(), adc_gpio_init(26), and adc_select_input(0). In the UI thread we read the 12-bit value from adc_read() (range 0–4095) and map it directly to our parameters depending on the current mode: in Mode 1 the reading sets the ball count (potentiometer_value clamped to [0………MAX_BALLS]), and in Mode 2 it sets the bounciness by converting to Q15 (bounciness = float2fix15(adc_raw/4095.0f)). The update is applied immediately, so turning the knob changes the number of active balls on the next frame.
+                    </p>
+                    <figure>
+                        <img src="./images/fig19.png" alt="Hardware Layout Diagram">
+                        <figcaption><strong>Figure 19.</strong> Hardware Layout Diagram</figcaption>
+                    </figure>
+                </div>
+                <h3 class="sub-section-title"><u>Optimization:</u></h3>
+                <div class="section-content">
+                    <p>
+                        The goal of is to animate as many balls as we can while meeting the 30 frames per second timing deadline. In mode 1, twisting the potentiometer adjusts the number of balls dropped. If the 30fps deadline is missed, the Raspberry Pi Pico on-board LED turns on.
+                    </p>
+                    <figure>
+                        <img src="./images/fig20.png" alt="Animation core 0, check if 30fps misses">
+                        <figcaption><strong>Figure 20.</strong> Animation core 0, check if 30fps misses</figcaption>
+                    </figure>
+                    <p>
+                        The graph below summarizes the maximum number of balls we can animate while meeting the deadline under various optimization scenarios.
+                    </p>
+                    <figure>
+                        <img src="./images/fig21.png" alt="Different optimization vs ball drop maximum">
+                        <figcaption><strong>Figure 21.</strong> Different optimization vs ball drop maximum</figcaption>
+                    </figure>
+                    <p>
+                        <strong>1. No optimization</strong> - 600 balls<br>
+                        Without applying any of the optimizations discussed in the lecture, we can animate a maximum of about 600 balls while still meeting the deadline.
+                    </p>
+                    <p>
+                        <strong>2. Overclocking</strong> - 1100 balls<br>
+                        We overclocked our system clock from 125MHz to 250MHz. In the animation.c file, we updated the argument passed to the csdk set_system_clock_khz() function from 150000 to 250000. The program now runs at 250 million clock cycles per second.
+                    </p>
+                    <figure>
+                        <img src="./images/fig22.png" alt="Changes in animation.c for doubled system clock rate">
+                        <figcaption><strong>Figure 22.</strong> Changes in animation.c for doubled system clock rate</figcaption>
+                    </figure>
+                    <p>
+                        The hsync and vsync PIO state machines execute instructions at 25 MHz. Our VGA screen demands that we send a new value to the RGB pins at precisely 25 MHz. To maintain this 25 MHz pixel clock time (same as PIO instruction time, since each PIO instruction takes a single cycle), we can set the clock divider to 5.
+                    </p>
+                    <p class="math">
+                        250 MHz / 5 = 25 MHz
+                    </p>
+                    <p>
+                        However, when we actually set the clock divider in our hsync and sync pio state machines to 5, our right side of our Galton Board seemed to go past the right edge of the VGA screen. So instead, we set the clock division to 6, to get 250 MHz /6 = 20 MHz.
+                    </p>
+                    <figure>
+                        <img src="./images/fig23.png" alt="Changes in hsync.pio and vsync.pio for doubled system clock rate">
+                        <figcaption><strong>Figure 23.</strong> Changes in hsync.pio and vsync.pio for doubled system clock rate</figcaption>
+                    </figure>
+                    <p>
+                        The rgb PIO state machines execute instructions at the full 125 MHz system clock rate. To accommodate the change of system clock rate to 250 MHz, we set the clock divider in rgb.pio to 2.
+                    </p>
+                    <p class="math">
+                        250 MHz/2 = 120 MHz
+                    </p>
+                    <figure>
+                        <img src="./images/fig24.png" alt="Changes in rgb.pio for doubled system clock rate">
+                        <figcaption><strong>Figure 24.</strong> Changes in rgb.pio for doubled system clock rate</figcaption>
+                    </figure>
+                    <p>
+                        This doubling in system clock rate allows us to animate almost double the number of balls.
+                    </p>
+                    <p>
+                        <strong>3. Multicore</strong> - 2900 balls<br>
+                        We made a second version of the animation thread and put it on core 1. Both core 0 and core 1 work on the animation simultaneously. Because we didn’t implement any ball-to-ball collisions, this implementation of parallelization is quite straightforward. A mutex was used to lock resources shared by the two cores.
+                    </p>
+                    <p>
+                        By having both core 1 and core 0 animate balls, we were able to animate almost more than triple the previous amount of balls.
+                    </p>
+                    <p>
+                        <strong>4. Alpha Max Beta Min</strong> - ___ balls<br>
+                        Next, we checked our entire program to ensure that there is no expensive floating-point arithmetic. In our ball collision logic, we originally computed distance by converting the fixed-point argument dx*dx + dy*dy to a floating-point value, computing the square root of the floating-point value, then converting the floating-point value back to fixed-point to be used in further calculations.
+                    </p>
+                    <p>
+                        We were able to avoid doing floating-point square roots by computing the root sum of squares using the alpha max beta min algorithm. We let alpha equal 1/1 and beta equal 1/4, for the largest error to be 11.61%.
+                    </p>
+                    <p>
+                        When we test our program, we realized that we ran out of memory. Our program can’t compile if we increase MAX_BALL to 2900 to 3000, before the LED turns on. To get back more memory, we can changed the pio state machines and vga driver to run 1-bit resolution (1 color) instead of 4 bit resolution (16 colors), but we decided to get checkoff here (while trying to get back more memory and failed in the time we had).
+                    </p>
+                    <p>
+                        Below are some other optimizations we would have made and test:
+                    </p>
+                    <p>
+                        <strong>5. Bit shift instead of multiplying by -2</strong> - ___ balls
+                    </p>
+                    <p>
+                        <strong>6. Bounciness Calculation</strong> - ___ balls
+                    </p>
+                    <p>
+                        <strong>7. 2x2 pixel square ball</strong> - ___ balls
+                    </p>
+                    <p>
+                        <strong>8. Guess which peg in collide row</strong> - ___ balls
+                    </p>
+                    <p>
+                        <strong>9. Draw peg, pixel, update text only when necessary</strong> - ___ balls
+                    </p>
+                    <p>
+                        <strong>10. Remove Print Statements</strong> - ___ balls<br>
+                        Print statements go through a UART channel, with a baud rate of 112500 and 10 bit times per character, making it very expensive. As a final optimization, we could have easily commented out print statements that were used for debugging purposes to get back more balls.
                     </p>
                 </div>
             </section>
             <section class="project-section" id="result">
-                <h2 class="section-title">Result</h2>
+                <h2 class="section-title">Result and Testing</h2>
                 <div class="section-content">
                     <p>
-                        We tested incrementally throughout the three weeks of the lab, meeting all checkoff requirements. The first week we performed testing of the DAC waveform using the oscilloscope (Figure 16), as well as an audial test using the speakers. Additionally, we used a blinking LED to check that the bootsel button worked.
+                        One issue we encountered in the lab is the VGA display crashing when we decrease the ball count with the potentiometers. Initially we thought it was because the ball was erased at the bottom of the frame and was never removed. However, since the issue only occurs when the potentiometer was turned lower, we tackled the logic behind it. One suggestion we got from Dr Adams was to make sure the potentiometer value never reached below 0. So we implemented a if statement that makes sure if the potentiometer is going into the negative direction, it will be hardcoded to 0. We also coded if the potentiometer value is less than the number of balls, then it will be erased from the board. This solved our crashing issue with the potentiometers.
                     </p>
                     <figure>
-                        <img src="./images/fig17.jpg" alt="Oscilloscope reading of “beep beep” code through DAC.">
-                        <figcaption><strong>Figure 17.</strong> Oscilloscope reading of “beep beep” code through DAC.</figcaption>
+                        <img src="./images/fig25.png" alt="VGA display crashing">
+                        <figcaption><strong>Figure 25.</strong> VGA display crashing</figcaption>
                     </figure>
                     <p>
-                        The second week we wired and tested the keypad using provided sample code, then added swoop and chirp functionality to buttons 1 and 2 respectively. We tested the swoop and chirp using oscilloscope and audial verification, as well as using GPIO pin 2 to see the timing of the ISR (Figure 17). All sound primitives spent approximately 130 milliseconds in the ISR.
+                        We also ran into trouble by introducing too many variables. Early on, we didn’t carefully review the provided parameters, so we defined our own and then edited both the lab’s parameters (boids) and our custom ones. That overlap created confusion about which variable controlled what and ultimately cost us the first week’s checkoff. We resolved it by restarting from a clean baseline, reading the provided interfaces carefully, and standardizing on the given parameters before adding any new ones. Another issue we faced was the ball always missing the first peg. This was a fairly simple fix: we position the peg closer to the ball drop point.
                     </p>
                     <figure>
-                        <table class="project-table">
-                            <thead>
-                                <tr>
-                                    <th>Sound Primitive</th>
-                                    <th>Time in ISR</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>Swoop</td>
-                                    <td>130 ms</td>
-                                </tr>
-                                <tr>
-                                    <td>Chirp</td>
-                                    <td>130 ms</td>
-                                </tr>
-                                <tr>
-                                    <td>Pause</td>
-                                    <td>130 ms</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <figcaption><strong>Figure 18.</strong> Table of ISR timing.</figcaption>
+                        <img src="./images/fig26.png" alt="Ball leave behind trail">
+                        <figcaption><strong>Figure 26.</strong> Ball leave behind trail</figcaption>
                     </figure>
                     <p>
-                        The final week, we completed play and record modes, resulting in a fairly convincing bird song imitation. The spectrogram (Figure 18) displays a marked similarity to the Northern Cardinal call which we hoped to imitate.
+                        After unsuccessful attempts to erase and straighten the ball, we restarted from a clean baseline and replaced our extra BOID variable with the lab-provided definitions organized as C structs. This resolved state inconsistencies and made the code scalable. We initially brought up the system with a single hard-coded ball, then refactored to an indexed array of balls to support the larger populations needed in later weeks.
                     </p>
-                    <figure>
-                        <img src="./images/fig19.png" alt="Simulated cardinal call">
-                        <figcaption><strong>Figure 19.</strong> Simulated cardinal call</figcaption>
-                    </figure>
-                    <p>
-                        One issue we encountered in lab is that there is a deadlock between our keypad thread and payback thread. We commented out the wait operator after the while(1) loop, to resolve the deadlock.
-                    </p>
-                    <figure>
-                        <img src="./images/fig20.png" alt="Keypad loop">
-                        <figcaption><strong>Figure 20.</strong> Keypad loop</figcaption>
-                    </figure>
                 </div>
             </section>
             <section class="project-section" id="conclusion">
                 <h2 class="section-title">Conclusion</h2>
                 <div class="section-content">
                     <p>
-                        Overall, this project was a successful introduction to the RP2040 and microcontrollers, and we effectively imitated a cardinal’s song. However, if we were to do this lab again, we would try approximating the “swoop” frequency curve as sine functions by utilizing the sine lookup table. We optimized the program by multiplying a value by itself using the multiplication operation instead of the math power function. We can further optimize our program by instead finding its derivatives and using the fundamental theorem of calculus part two. We could also try utilizing the second core on this microcontroller to lift the load per thread. If given more time, we also want to fine-tune our frequency equation more to successfully trick the merlin app.
+                        This lab exercise culminated in a successful Galton board and fruitful learning experience. All aspects of the lab, including ball generation, collision physics, VGA display, histogram, sound, and potentiometer meet or exceed expectations. Through strategic design and continual optimization, we were able to increase our throughput to almost 3000 balls onscreen at a time. Along this path, we ran into numerous challenges, but through thoughtful design and extensive debugging, our end result was a success. One thing we could have done differently is getting started earlier the first week, as we ended up missing a checkoff; this was rectified by starting work earlier for the second checkoff, and attending more lab sessions. Additionally, we could have performed more optimizations with more time, such as removing unnecessary VGA updates and print statements. Overall, this lab provided a solid foundation for continuing work in physics simulation, VGA, and external device communication using the Raspberry Pi.
                     </p>
                 </div>
             </section>
@@ -286,24 +435,15 @@
                 <div class="section-content">
                     <p>
                         <strong>Michelle Yang:</strong>
-                        Wrote most of the code.
+                        Lead the writing and debugging of majority of the code/logic. Individually completed all optimizations.
                     </p>
                     <p>
-                        <strong>Diane Pillsbury:</strong>
-                        Wrote the initial version of the debouncer code (final version of project, debouncer logic replaced by Michelle's implementation).
-                    </p>
-                </div>
-            </section>
-            <section class="project-section" id="citation">
-                <h2 class="section-title">Citation</h2>
-                <div class="section-content citation-text">
-                    <p>
-                        Adams, V. (n.d.). Synthesizing birdsong via direct digital synthesis¶. Birdsong_synthesis. <a href="https://vanhunteradams.com/Pico/Birds/Birdsong_synthesis.html">https://vanhunteradams.com/Pico/Birds/Birdsong_synthesis.html</a>
+                        <strong>Xia Yan Zhao:</strong>
+                        Individually wrote code for generating a histogram. Assisted immensely with debugging the program.
                     </p>
                 </div>
             </section>
         </article>
-
     </main>
     <footer id="footer">
         <div class="footer-content">

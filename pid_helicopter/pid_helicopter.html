@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Synthesizing Birdsong | Michelle Yang</title>
+    <title>PID Control of a 1D Helicopter | Michelle Yang</title>
     <link rel="icon" type="image/png" href="../images/girl_cat_computer.png">
     <link rel="stylesheet" href="../css/styles.css">
 </head>
@@ -16,10 +16,10 @@
             </div>
             <div class="nav-right">
                 <a class="nav-link active" href="../index.html" target="_blank" rel="noopener noreferrer">Projects</a>
-                <a class="nav-link" href="./synthesizing_birdsong/synthesizing_birdsong.html" target="_blank" rel="noopener noreferrer">Notes</a>
-                <a class="nav-link" href="./synthesizing_birdsong/synthesizing_birdsong.html" target="_blank" rel="noopener noreferrer">Blog</a>
-                <a class="nav-link" href="./synthesizing_birdsong/synthesizing_birdsong.html" target="_blank" rel="noopener noreferrer">About</a>
-                <a class="nav-link" href="./synthesizing_birdsong/synthesizing_birdsong.html" target="_blank" rel="noopener noreferrer">Others</a>
+                <a class="nav-link" href="../notes.html" target="_blank" rel="noopener noreferrer">Notes</a>
+                <a class="nav-link" href="../blog.html" target="_blank" rel="noopener noreferrer">Blog</a>
+                <a class="nav-link" href="../about.html" target="_blank" rel="noopener noreferrer">About</a>
+                <a class="nav-link" href="../others.html" target="_blank" rel="noopener noreferrer">Others</a>
             </div>
         </nav>
     </header>
@@ -27,19 +27,22 @@
     <main id="main-content">
         <article class="project-article" id="top">
             <header class="project-header">
-                <h1 class="project-main-title">Synthesizing Birdsong</h1>
+                <h1 class="project-main-title">PID Control of a 1D Helicopter</h1>
             </header>
             <figure class="project-hero">
                 <div class="project-hero-media">
-                    <iframe width="560" height="315" src="https://www.youtube.com/embed/IXEofso0_44?si=MK0IOiRm1RZ1r-kY" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+                    <iframe width="560" height="315" src="https://youtube.com/embed/XTgqTnrU4fw?si=PqJGPI8wTJ4oT6yC" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
                 </div>
-                <figcaption class="project-hero-caption">Synthesizing Birdsong with Raspberry Pi Pico Demonstration Video (my phone got pit-pocket...lost the video QAQ!! need to record a new one!)</figcaption>
+                <figcaption class="project-hero-caption">PID Control of a 1D Helicopter with Raspberry Pi Pico Demonstration Video. (This is another victim of the "pit-pocketed phone." This video only shows an unfinished, out-of-tune, version of the PID controller.)</figcaption>
             </figure>
             <section class="project-section" id="introduction">
                 <h2 class="section-title">Introduction</h2>
                 <div class="section-content">
                     <p>
-                        The goal was to design a bird song synthesizer that synthesizes one of the most common songs of the northern cardinal on a Raspberry Pi Pico with the RP2040 processor. We use direct digital synthesis to generate a pure sine wave “beep,” then amplitude modulate the beep to produce “swoop” and “chirp,” in an attempt to trick Cornell Ornithology’s Merlin Bird ID App. We control the synthesizer with a keypad, to associate pressing button 1 with “chirp,” button 2 with “swoop,” button 3 with “silence,” and developed record and playback modes (interface by pressing button 4 and 5 respectively) to capture and reproduce the song sequence with precise timing.
+                        We constructed and controlled a one-degree-of-freedom helicopter system. The apparatus consists of a small ducted motor rigidly attached to one end of a lever arm. We aimed to achieve precise angular control of the arm through a Proportional Integral Derivative (PID) feedback controller in response to user specified target angles and feedback from a Inertial Measurement Unit (IMU).
+                    </p>
+                    <p>
+                        The main challenge addressed in this project is integrating a microcontroller (the RP2040) with multiple systems through various communication protocols. User commands specifying parameters such as target angle are received through the UART serial interface. Simultaneously, the IMU communicates via I2C to provide accelerometer and gyroscope measurements. These measurements are processed through a complementary filter to estimate the arm angle in real time. Based on the difference between the target angle and the estimated current angle, the Pico generates Pulse Width Modulation(PWM) signals to drive the DC motor, using a custom motor control circuit. We use a VGA screen to display key parameters, target and current angle, and PID output to PWM.
                     </p>
                 </div>
             </section>
@@ -48,227 +51,317 @@
                 <h3 class="sub-section-title"><u>General:</u></h3>
                 <div class="section-content">
                     <p>
-                        In the main part of the program, we initialized the serial interface, map the GPIO ports to the DAC pins, the GPIO ports to the on-board LED (for signaling entering protothread later on), set up the timing ISR, pre-calculate the bow envelope increments, build the sine lookup table, initialize the keypad, and identified 2 functions, photothread_core_0 (keypad thread) and protothread_playback to scheduler.
+                        Project design comprised the integration of an arm apparatus, motor, motor controller, inertial measurement unit, VGA screen, and a robust software program on the RP2040. The project commenced with physical assembly of the arm and motor control circuit, and connection of all hardware to the RP2040.
                     </p>
                     <p>
-                        The bow envelop calculation is needed to slowly ramp up and down the sinewave, to prevent high frequency “pops” and “clicks” in the generated speaker output sound. The sine lookup table produce values between 0 and 4096 (2^16), the range of data the DAC will receive. The sine lookup table will be index into when performing direct digital synthesis in the timer ISR.
-                    </p>
-                    <figure>
-                        <img src="./images/fig1.png" alt="Set up increment for bow envelope and sine loopup table">
-                        <figcaption><strong>Figure 1.</strong> Set up increment for bow envelope and sine loopup table</figcaption>
-                    </figure>
-                    <p>
-                        In the main, the timer interrupt is enabled, associated with its interrupt handler function, and armed for the first time by writing the lower 32 bits of the target time (DELAY time passed current time) to the alarm register.
-                    </p>
-                    <figure>
-                        <img src="./images/fig2.png" alt="Timer IRQ Setup">
-                        <figcaption><strong>Figure 2.</strong> Timer IRQ Setup</figcaption>
-                    </figure>
-                    <p>
-                        To interface with the keypad, all 7 keypad buttons are inialize with corresponding GPIO pins. The row pins are set to output and are connected in series with external 330 ohms pull down resistors, and column pins are set to input with internal pulldown resistors turn on.
-                    </p>
-                    <figure>
-                        <img src="./images/fig3.png" alt="Keypad Initialize">
-                        <figcaption><strong>Figure 3.</strong> Keypad Initialize</figcaption>
-                    </figure>
-                    <p>
-                        Two core-safe (although only core 0 is utilitized) semaphores are used to ensure the precise alternation between the keypad thread and the playback thread. These semaphores are initializefd before starting either of the two proto-threads (keypad thread and playback thread). Since we want the keypad thread to run automatically when program reboot, we set the keypad_thread_go_s initial count to 1,  and the playback_thread_go_s initial count to 0, to block the playback thread while the keypad thread runs. If a song is recorded (the recorded_song length 30 array is not empty) and the playback button is pressed, the keypad thread signals the playback thread (increment playback_thread_go_s semaphore) to playback the recorded song, and after the playback thread finish reproducing all the songs (by sending array’s stored button press to timer ISR)  and resets the array, the playback thread signals back to the keypad thread (increment keypad_thread_go_s semaphore) to starting scanning for valid keys again.  At the end of main, we start the scheduler to schedule the core 0 threads (keypad thread and playback thread).
-                    </p>
-                    <figure>
-                        <img src="./images/fig4.png" alt="Semaphore initialize, add threads to scheduler, start scheduler">
-                        <figcaption><strong>Figure 4.</strong> Semaphore initialize, add threads to scheduler, start scheduler</figcaption>
-                    </figure>
-                </div>
-                
-                <h3 class="sub-section-title"><u>Timer ISR:</u></h3>
-                <div class="section-content">
-                    <p>
-                        We first combined the audio beep-beep demo code with the keypad demo code to associate a button press on the keypad with the production of a pure sine wave “beep.” The beep-beep demo code fires an interrupt once per second, generating a 400 Hz beep through an SPI DAC. We removed the state transition else statement from the  beep-beep ISR to prevent repeated “beep” production. When a button press, a sound is generated (in state 0) , then the state transitions to state 1, and stays in state 1 until another valid button press.
-                    </p>
-                    <figure>
-                        <img src="./images/fig5.png" alt="Removed state transition">
-                        <figcaption><strong>Figure 5.</strong> Removed state transition</figcaption>
-                    </figure>
-                    <p>
-                        “The song of a northern cardinal can be decomposed into three sound primitives: a low-frequency swoop at the beginning of each call, a chirp after each swoop which moves rapidly from low frequency to high frequency, and silence which separates each swoop/chirp combination” (Synthesizing Birdsong via Direct Digital Synthesis webpage).
-                    </p>
-                    <figure>
-                        <img src="./images/fig6.png" alt="Spectogram of Northern Cardinal song">
-                        <figcaption><strong>Figure 6.</strong> Spectogram of Northern Cardinal song</figcaption>
-                    </figure>
-                    <p>
-                        Using if-else statements, we associate button press with the desired sound. If button 1 is pressed, produce a “swoop” sound. If button 2 is pressed, produce a “chirp” sound. If button 3 is pressed, produce a silent “pause” sound.
-                    </p>
-                    <figure>
-                        <img src="./images/fig7.png" alt="Associate button press with desire synthesize frequency">
-                        <figcaption><strong>Figure 7.</strong> Associate button press with desire synthesize frequency</figcaption>
-                    </figure>
-                    <p>
-                        We set the phase incrementor angle to index into the sine lookup table, to obtain a value to send to the DAC, to produce our desired sound. We observe from the spectrogram that the “swoop” of the song looks like the first half of the sine-wave, the “chirp” of the song looks like the second half of an upward parabola, and the “silence” of the song is a constant frequency of 0. We found the desired frequency function with count_0 as the dependent variable for the “swoop” and “chirp.”
+                        We designed a comprehensive software program based on demo code provided by Hunter Adams. Our main function sets up I2C communication with the IMU, and initializes the VGA, MPU6050, playback button, display LED, PWM output, and semaphores. We launch a user input protothread on core zero, and launch VGA and playback protothreads on core one to maximize the opportunity each thread has to run. Measurements from the MPU6050 IMU are taken in an interrupt service routine to ensure they are sampled at a kilohertz frequency.
                     </p>
                     <p>
-                        Note that the length of these sound primitives are 130ms, so they all last for:
+                        Our main testing strategy was incrementally adding functionality and testing by visual inspection, oscilloscope, and VGA display.
                     </p>
-                    <p class="math">
-                        0.130 sec ⋅ 50000 samples (since DAC gathers audio staples at F<sub>s</sub> = 50KHz)/1 sec 
-                        <br><br>
-                        = 6500 samples
-                    </p>
-                    <p>
-                        We can approximate the frequency curve of the “swoop” by a sine wave of the form:
-                    </p>
-                    <p class="math">
-                        F<sub>desire</sub> = F_syn = ksin(m*count_0 + b)
-                    </p>
-                    <p>
-                        but the sine math function is too expensive and using it directly will cause us to miss the timing ISR deadline. We could choose to build another sine look up table to utilize the sine wave approximation, but we decided to go with a simpler quadratic approximation. The frequency curve of the “swoop” also looks like an upward pointing parabola, approximated by the form:
-                    </p>
-                    <p class="math">
-                        F<sub>desire</sub> = F_syn = a(count_0 - h)<sup>2</sup> + k (in vertex form for easier calculation of parameters)
-                    </p>
-                    <p>
-                        And finding unknown parameters a, h, and k by plugging in known points (count_0, F_syn).
-                    </p>
-                    <p>
-                        We can approximate the frequency curve of the “chirp” by a quadratic equation of the form:
-                    </p>
-                    <p class="math">
-                        F<sub>desire</sub> = F_syn = k(count_0)<sup>2</sup> + b
-                    </p>
-                    <p>
-                        and finding unknown parameters k, b, and m by plugging in known points (count_0, F_syn).
-                    </p>
-                    <p>
-                        For “swoop,” it is known from the spectrogram that the curve starts from a frequency of 1740 Hz, raise to a maximum/peak of 2000 Hz at 6500/2 count_0 interrupt sample, and then fall back down to 1740 Hz at 6500 count_0 interrupt sample. The unknown parameter a, h, and k are found by plugging in (0, 1740), (6500/2, 2000), and (6500, 1740), to obtain a = -13/528125, k = 2000, and h = 6500/2. Thus, in vertex form, F<sub>desire</sub> = F_syn = (-13/528125)(count_0 - (6500/2))<sup>2</sup> = 2000.
-                    </p>
-                    <p>
-                        For “chirp,” it is known from the spectrogram that the curve starts from a low frequency of 2000 Hz  and raises to a high frequency of 7000 Hz after 5200 interrupt samples (count_0 start from time 0 to time 5200). The unknown parameter k and b are found by plugging in (0, 2000) and (5200, 7000), to obtain k = 1.18 * 10<sup>-4</sup>, b = 2000. Thus, F<sub>desire</sub> = F_syn = (1.18 * 10<sup>-4</sup>)(count_0)<sup>2</sup> + 2000.
-                    </p>
-                    <p>
-                        We also used matlab to plot the desired frequency formulas to make sure they relatively look like the “swoop” and “chirp” curves of the Northern Cardinal. The “swoop” plot also compares what the curve will look like if approximated by sine wave instead of quadratic.
-                    </p>
-                    <figure>
-                        <img src="./images/fig8.png" alt="Comparison between sine wave approximation and quadratic approximation for “swoop”">
-                        <figcaption><strong>Figure 8.</strong> Comparison between sine wave approximation and quadratic approximation for “swoop”</figcaption>
-                    </figure>
-                    <figure>
-                        <img src="./images/fig9.png" alt="Plot of quadratic approximation for “chirp”">
-                        <figcaption><strong>Figure 9.</strong> Plot of quadratic approximation for “chirp”</figcaption>
-                    </figure>
-                    <p>
-                        The manipulated desire frequency determines the phase incrementor angle to index into the sine lookup table, to send value through the SPI transmit buffer to DAC to produce desire sound via speaker.
-                    </p>
-                    <figure>
-                        <img src="./images/fig10.png" alt="SPI write">
-                        <figcaption><strong>Figure 10.</strong> SPI write</figcaption>
-                    </figure>
-                    <p>
-                        At the beginning of the timer ISR, we set a GPIO high, to signal entering the ISR, and in the end of the ISR, we set the GPIO low to signal leaving the ISR. This allows us to hook up the specified GPIO pin to an oscilloscope, allowing us to measure how long we were in the ISR, verifying that we met the timing requirement.
-                    </p>
-                    <figure>
-                        <img src="./images/fig11.png" alt="ISR timing on oscilloscope">
-                        <figcaption><strong>Figure 11.</strong> ISR timing on oscilloscope</figcaption>
-                    </figure>
-                </div>
-                <h3 class="sub-section-title"><u>Keypad Thread:</u></h3>
-                <div class="section-content">
-                    <p>
-                        Underneath the keyscan code, we implemented a debouncer for key press using a state machine. No matter how long a key is pressed, one sound is produced (“swoop,” “chirp,” or “pause”).
-                    </p>
-                    <p>
-                        The debouncer prevents one key press being interpreted as multiple by adding a buffer cycle. On the first cycle in which the key is pressed, the debouncer transitions(Figure 12) to “Maybe Pressed” state, allowing an extra cycle before the sound is played or mode switched. If, while in the “Maybe Pressed” state, the keypad is still reading the same key press, it will transition to the “Pressed” state, and set a “button_number” or “mode” variable which will control the ISR operation. As long as the keypad reads that the same button is pressed, the state will remain in pressed, preventing multiple occurrences of a button-press action (ex. playing a chirp).  If it does not read the same key press, it will transition to “Maybe Not Pressed,” another buffer cycle. From there, it will transition to “Not Pressed” if the keypad continues to read no button press.
-                    </p>
-                    <figure>
-                        <img src="./images/fig12.png" alt="Debouncing State Machine">
-                        <figcaption><strong>Figure 12.</strong> Debouncing State Machine</figcaption>
-                    </figure>
-                    <figure>
-                        <img src="./images/fig13.png" alt="Keypad Debouncing">
-                        <figcaption><strong>Figure 13.</strong> Keypad Debouncing</figcaption>
-                    </figure>
-                </div>
-                <h3 class="sub-section-title"><u>Playback Thread:</u></h3>
-                <div class="section-content">
-                    <figure>
-                        <img src="./images/fig14.png" alt="Playback thread">
-                        <figcaption><strong>Figure 14.</strong> Playback thread</figcaption>
-                    </figure>
-                    <p>
-                        When entering the playback thread, “in playback_thread” prints on serial monitor, and on-board led is off to indicate being inside playback thread. This helps with debugging our program, ensuring alternation of threads.
-                    </p>
-                    <p>
-                        We did not use a counter to keep track of how many songs are recorded. Instead, we use a for loop to iterate through the recorded_song length 30 array, starting from index 0, producing a song by storing element of current index (“swoop”, “chirp,” or “pause”) to button_number and setting STATE_0 (song production happens in timer ISR), then incrementing to next index and produce that sound, and continue incrementing until reach an empty index, which the for loop breaks. The sleep_us(100) ensures that when sound production is happening (STATE_0 = 0), for loop doesn’t increment and try to produce new song is produced. After breaking from the for loop, with every nonempty index’s element accessed to produce a sound, the array is reset.
-                    </p>
-                    <figure>
-                        <img src="./images/fig15.png" alt="Playback recorded song">
-                        <figcaption><strong>Figure 15.</strong> Playback recorded song</figcaption>
-                    </figure>
-                    <p>
-                        After playback thread finishes running, it signals the keypad thread to run by incrementing the keypad_thread_go_s semaphore. The keypad thread then can scan for new valid keypress.
-                    </p>
-                    <figure>
-                        <img src="./images/fig16.png" alt="Signal keypad thread to run">
-                        <figcaption><strong>Figure 16.</strong> Signal keypad thread to run</figcaption>
-                    </figure>
                 </div>
                 <h3 class="sub-section-title"><u>Hardware:</u></h3>
                 <div class="section-content">
                     <p>
-                        This project utilizes a Raspberry Pi Pico (RP2040), a digital-to-analog converter (DAC), a button switch (for bootsel) as well as a keypad. Peripheral hardware (keypad and DAC, as well as audio port and bootsel button) are all situated on a breadboard. The keypad, DAC and bootsel button are wired to GPIO pins specified in the provided code, while the audio port is attached to the DAC output and ground.
+                        This project involved extensive mechanical and electronic hardware. The “helicopter” consists of a fan on the end of an acrylic lever arm. A rubber band is used to secure the fan in place in its slot on the arm. The opposite end of the arm is affixed to a metal hinge using M2.5 nuts and bolts, which is connected to a wood block using screws. The wood block is held secure to the table using a clamp.
                     </p>
-                </div>
-            </section>
-            <section class="project-section" id="result">
-                <h2 class="section-title">Result</h2>
-                <div class="section-content">
                     <p>
-                        We tested incrementally throughout the three weeks of the lab, meeting all checkoff requirements. The first week we performed testing of the DAC waveform using the oscilloscope (Figure 16), as well as an audial test using the speakers. Additionally, we used a blinking LED to check that the bootsel button worked.
+                        Towards the stationary end, a MPU6050 Inertial Measurement Unit (IMU) is screwed to the lever arm. The IMU was directly attached to RP2040 GPIO ports, while the fan was connected to a motor controller, which was connected to a power source and RP2040 GPIO ports. Additionally, a VGA screen is used to display measurements and constants, which is attached via a VGA driver to RP2040. Finally, a simple pushbutton is connected to a RP2040 GPIO and ground, to trigger arm movement to a sequence of target angles when pressed.
                     </p>
                     <figure>
-                        <img src="./images/fig17.jpg" alt="Oscilloscope reading of “beep beep” code through DAC.">
-                        <figcaption><strong>Figure 17.</strong> Oscilloscope reading of “beep beep” code through DAC.</figcaption>
+                        <img src="./images/fig1.jpg" alt="Full Mechanical Setup">
+                        <figcaption><strong>Figure 1.</strong> Full Mechanical Setup</figcaption>
                     </figure>
                     <p>
-                        The second week we wired and tested the keypad using provided sample code, then added swoop and chirp functionality to buttons 1 and 2 respectively. We tested the swoop and chirp using oscilloscope and audial verification, as well as using GPIO pin 2 to see the timing of the ISR (Figure 17). All sound primitives spent approximately 130 milliseconds in the ISR.
+                        <strong>VGA:</strong><br>
+                        To drive the VGA, we send several digital signals through resistors mounted on a PCB to a VGA port. GPIO 16 and 17 provide horizontal and vertical sync signals while GPIOS 18-21 generate the color signals. The display showed real time traces of PID controller output (yellow), target angle (green), measured angle (white), and raw sensor data which is used for debugging.
+                    </p>
+                    <figure>
+                        <img src="./images/fig2.jpg" alt="RP2040, Breadboard, and VGA Adapter">
+                        <figcaption><strong>Figure 2.</strong> RP2040, Breadboard, and VGA Adapter</figcaption>
+                    </figure>
+                    <p>
+                        <strong>Motor and Driver:</strong><br>
+                        The motor is a simple fan, controlled by pulse width modulation of a 5V source signal through a motor control circuit. Turning the motor on generates voltage spikes due to the motor’s inductance; a motor controller was necessary to protect the microcontroller from noise and voltage spikes, regulate motor operation, and ensure proper motor voltage (5V). Furthermore, the circuit had to be built on a PCB since it may melt a breadboard.
+                    </p>
+                    <p>
+                        It takes a PWM signal from the RP2040, and connects it to the gate of a MOSFET transistor using a 4N35 optoisolator, which isolates the RP2040 from the motor circuit. When the PWM signal is high, the motor, capacitor, and diode will be connected to a complete circuit of 5V, turning the motor on. The diode grounds reverse polarity spikes while the capacitor grounds high-frequency noise. PWM output uses GPIO 16 since this is the only RP2040 port which can be driven by PWM independently.
+                    </p>
+                    <figure>
+                        <img src="./images/fig3.jpg" alt="Physical PWM Motor Controller">
+                        <figcaption><strong>Figure 3.</strong> Physical PWM Motor Controller</figcaption>
+                    </figure>
+                    <figure>
+                        <img src="./images/fig4.png" alt="PWM Motor Controller Schematic">
+                        <figcaption><strong>Figure 4.</strong> PWM Motor Controller Schematic</figcaption>
+                    </figure>
+                    <p>
+                        We setted our maximum/minimum angles to 90 and our Kp to 300, Ki to 0.75, and Kd to 300 to produce stable behavior for our PID gains.
+                    </p>
+                    <p>
+                        <strong>Inertial Measurement Unit (IMU):</strong><br>
+                        The MPU6050 IMU is a 6-axis sensor containing a 3 axis accelerometer and 3 axis gyroscope. It communicates via I2C on GPIO pins 8 (SDA) and 9 (SCL). Positioned near the pivot point to minimize centripetal acceleration effects, it provided measurements at 1kHz, which are used to estimate arm angle and rapidly update motor speed. Careful attention was paid to the direction the IMU was mounted: the X axis is parallel to the hinge, the positive Y points towards the fixed end of the arm, and the positive Z perpendicular to the ground when the arm is in the 90 degree position.
                     </p>
                     <figure>
                         <table class="project-table">
                             <thead>
                                 <tr>
-                                    <th>Sound Primitive</th>
-                                    <th>Time in ISR</th>
+                                    <th>RP2040 Port or GPIO PIN</th>
+                                    <th>Connection</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td>Swoop</td>
-                                    <td>130 ms</td>
+                                    <td>3.3 V</td>
+                                    <td>MPU6050 VCC</td>
                                 </tr>
                                 <tr>
-                                    <td>Chirp</td>
-                                    <td>130 ms</td>
+                                    <td>Ground</td>
+                                    <td>MPU6050 GND, VGA GND, PWM GND</td>
                                 </tr>
                                 <tr>
-                                    <td>Pause</td>
-                                    <td>130 ms</td>
+                                    <td>4</td>
+                                    <td>Both chips pass: Green light works. Displays expected error messages.</td>
+                                </tr>
+                                <tr>
+                                    <td>8</td>
+                                    <td>Both chips pass: Green light works. Displays expected error messages.</td>
+                                </tr>
+                                <tr>
+                                    <td>9</td>
+                                    <td>Both chips pass: Green light works. Displays expected error messages.</td>
+                                </tr>
+                                <tr>
+                                    <td>15</td>
+                                    <td>Both chips pass: Green light works. Displays expected error messages.</td>
+                                </tr>
+                                <tr>
+                                    <td>16</td>
+                                    <td>VGA Hsync</td>
+                                </tr>
+                                <tr>
+                                    <td>17</td>
+                                    <td>VGA Vsync</td>
+                                </tr>
+                                <tr>
+                                    <td>18</td>
+                                    <td>470 Ohm Resistor to VGA Green</td>
+                                </tr>
+                                <tr>
+                                    <td>19</td>
+                                    <td>330 Ohm Resistor to VGA Green</td>
+                                </tr>
+                                <tr>
+                                    <td>20</td>
+                                    <td>330 Ohm Resistor to VGA Blue</td>
+                                </tr>
+                                <tr>
+                                    <td>21</td>
+                                    <td>330 Ohm Resistor to VGA Red</td>
                                 </tr>
                             </tbody>
                         </table>
-                        <figcaption><strong>Figure 18.</strong> Table of ISR timing.</figcaption>
+                        <figcaption><strong>Table 1.</strong> RP2040 Port Connections</figcaption>
                     </figure>
+                </div>
+                <h3 class="sub-section-title"><u>Software</u></h3>
+                <div class="section-content">
                     <p>
-                        The final week, we completed play and record modes, resulting in a fairly convincing bird song imitation. The spectrogram (Figure 18) displays a marked similarity to the Northern Cardinal call which we hoped to imitate.
+                        The system consists of an interrupt service routine that handles pulse width modulation (PWM) control updates, and three concurrently running threads: serial user input, VGA display, and angle sequence playback. At the top of the program, macros and global variables are defined. The main function initializes the VGA and I2C configurations, sets up PWM, multicore operations, and configures the buttons for playback and the on-board LED. Semaphores are employed to signal when the next thread should execute, ensuring proper synchronization among concurrent processes. Our software program is built upon Hunter’s MPU 6050 IMU demo code, and below is the flowchart illustrating the structure of our software.
                     </p>
                     <figure>
-                        <img src="./images/fig19.png" alt="Simulated cardinal call">
-                        <figcaption><strong>Figure 19.</strong> Simulated cardinal call</figcaption>
+                        <img src="./images/fig5.png" alt="Flowchart of software program">
+                        <figcaption><strong>Figure 5.</strong> Flowchart of software program</figcaption>
                     </figure>
+                </div>
+                <h3 class="sub-section-title"><u>Interrupt Service Routine</u></h3>
+                <div class="section-content">
                     <p>
-                        One issue we encountered in lab is that there is a deadlock between our keypad thread and payback thread. We commented out the wait operator after the while(1) loop, to resolve the deadlock.
+                        <strong>Complementary Filter:</strong><br>
+                        The interrupt service routine fires 1000 times per second. When we enter the ISR, we first clear the interrupt flag that brought us here. We read the accelerometer and gyro raw values over an I2C channel. The values are 15.16 fixed-point, with the accelerometer value in g’s and gyro in deg/sec. Because the accelerometer readings are noisy, we low-pass the accelerometer raw values using an infinite impulse response (IIR) filter, right shifting by 4 (dividing by 16), producing a smoothing effect. Then, the filtered accelerometer readings are used to calculate the tilt angle (in degrees), dividing negative filtered ay by filtered az, then using the atan2 function.
+                    </p>
+                    <p>
+                        The gyroscope measures the rotation rate of the arm, which can be integrated over time to estimate angular position. By multiplying the gyro reading by the sample rate of  0.001, the program computes the incremental change in angle for each time step. The updated angle is then obtained by adding this change to the previously estimated angle from the complementary filter. Mathematically, this process is expressed as:
+                    </p>
+                    <img src="./images/arm_angle_equation.png" alt="arm angle, gyro estimate">
+                    <p>
+                        Where 𝜃<sub>0</sub>  is the initial angle, g<sub>z</sub> is the angular velocity about the z-axis, and Δ𝑡 is the sample rate. This method is known as dead reckoning, providing smooth and responsive short term angle estimates, but small biases in the gyroscope reading accumulate over time, causing the estimated angle to drift.
                     </p>
                     <figure>
-                        <img src="./images/fig20.png" alt="Keypad loop">
-                        <figcaption><strong>Figure 20.</strong> Keypad loop</figcaption>
+                        <img src="./images/fig6.png" alt="IMU orientation on arm">
+                        <figcaption><strong>Figure 6.</strong> IMU orientation on arm</figcaption>
+                    </figure>
+                    <p>
+                        Therefore, while the gyroscope provides stable short-term angle estimates, it has to be combined with the accelerometer data through a complementary filter to correct for long term drift. The accelerometer raw readings have high-frequency noise, but the measured error is zero-mean, meaning that the accelerometer does not accumulate any measurement bias. The complementary angle is calculated by high passing the gyro value and low passing the accelerometer value.
+                    </p>
+                    <p>
+                        <strong>PID Controller:</strong><br>
+                        After computing the complementary angle, the interrupt service routine executes the PID controller algorithm, computes and sets the control input to the set PWM function. The measured angle from the complementary filter is compared with the target angle set by the user in Thread 2, User Input Thread, to calculate the angle error.
+                    </p>
+                    <p>
+                        The proportional term takes the current error signal and scales it by the proportional gain to determine the immediate control response. The integral term accumulates the error over time and is clamped to our predefined bounds of +/-3000 to prevent integrator windup, which can break the arm if the accumulated error becomes too large. The derivative term is approximated using the gyroscope reading, providing a measure of how quickly the error is changing, effectively resisting rapid changes in the system to help dampen overshoot and oscillations. This closed-loop control is shown below:
+                    </p>
+                    <figure>
+                        <img src="./images/fig7.png" alt="Block diagram for PID controller from Hunter’s website">
+                        <figcaption><strong>Figure 7.</strong> Block diagram for PID controller from Hunter’s website</figcaption>
+                    </figure>
+                    <p>
+                        Before implementing the closed-loop control, we tested and debugged our physical system with the simpler open-loop control. In open-loop control, the motor is driven purely based on commanded input without using any feedback from the MPU6050. We directly set the PWM control to the target angle scaled by WRAPVAL/180. The issue with open-loop control is that the system is extremely sensitive to the condition in which it was molded and/or calibrated, so we closed the loop. Below is the block diagram of the open-loop control:
+                    </p>
+                    <figure>
+                        <img src="./images/fig8.png" alt="Block diagram for open-loop from Hunter’s website">
+                        <figcaption><strong>Figure 8.</strong> Block diagram for open-loop from Hunter’s website</figcaption>
+                    </figure>
+                    <p>
+                        The ISR updates the PWM output using the hardware output compare unit, to adjust the motor voltage of the motor, to maintain and reach a desired hover angle. Finally, a semaphore is signaled to trigger the VGA display thread to update the two plots and the upper left corner readings.
+                    </p>
+                    <p>
+                        <strong>Thread 1:</strong> User Input Thread<br>
+                        The user input thread runs on core 0. It continuously prompts the user to input a character command to adjust one of the PID gains (Kp, Ki, or Kd), target angle (t), accelerometer weight (a), or gyro weight (g)  for the complementary filter. After receiving each command, the thread prompts the user for a numeric value, updating the corresponding global variable. We used a non-blocking serial read/write interface to create an easy-to-use typed-command interface without having a large effect on timing.
+                    </p>
+                    <p>
+                        <strong>Thread 2:</strong> VGA Thread<br>
+                        The VGA thread runs on core 1. It updates the VGA display based on the global variables modified by the serial user input thread, the calculated values from the interrupt service routine (complementary angle, PID output controller, accelerometer angle, and gyro angle). The VGA thread is synchronized using a semaphore signal, updating the VGA screen to reflect the most recent PID control cycle, 1000 times per second.
+                    </p>
+                    <p>
+                        At the top left of the screen, the thread displays the values of:
+                    </p>
+                    <ul class="list">
+                        <li>Target angle</li>
+                        <li>Complementary angle</li>
+                        <li>PID controller output</li>
+                        <li>Accelerometer value weight</li>
+                        <li>Gyroscope value weight</li>
+                        <li>Accelerometer angle</li>
+                        <li>Gyroscope angle</li>
+                    </ul>
+                    <p>
+                        The top plot shows:
+                    </p>
+                    <ul class="list">
+                        <li>PID control output (in yellow)</li>
+                    </ul>
+                    <p>
+                        The bottom plot shows:
+                    </p>
+                    <ul class="list">
+                        <li>Target angle (in green)</li>
+                        <li>Complementary angle (in white)</li>
+                        <li>Accelerometer angle (in blue)</li>
+                        <li>Gyroscope angle (in red)</li>
+                    </ul>
+                    <figure>
+                        <img src="./images/fig9.png" alt="VGA display (PID controller output not low-passed in image, but the plots behave as expected)">
+                        <figcaption><strong>Figure 9.</strong> VGA display (PID controller output not low-passed in image, but the plots behave as expected)</figcaption>
+                    </figure>
+                    <p>
+                        In addition to drawing the plots or displaying values, the VGA thread checks for a button press, and upon stabilizing the button press through a debouncer from lab 1 (also used in lab 2), signals the angle sequence playback thread to begin executing programmed angle motion sequence.
+                    </p>
+                    <figure>
+                        <img src="./images/fig10.png" alt="Debouncing state machine">
+                        <figcaption><strong>Figure 10.</strong> Debouncing state machine</figcaption>
+                    </figure>
+                    <p>
+                        Additionally, the on-board LED turns on when it is in the VGA thread, acting as a heart beat of the system. This was useful for debugging; our connection to the VGA was faulty at times, and the LED confirmed that our code was running correctly.
+                    </p>
+                    <p>
+                        <strong>Thread 3:</strong> Angle Sequence Thread<br>
+                        The on-board LED turns off when it is in the angle sequence thread. The angle sequence thread waits for VGA thread to signal it to run via a semaphore. After the playback thread receives permission from the VGA thread, it blocks the VGA thread from drawing, and quickly executes its first motion sequence of 90 degrees. After the interrupt service routine executes the command, the playback thread yields for 5 seconds, allowing the VGA thread to run and draw the changed motion, before blocking the VGA thread again and commanding the next position. This process was repeated for all the motions required for check-off:
+                    </p>
+                    <ul class="list">
+                        <li>90 degrees for 5 seconds</li>
+                        <li>120 degrees for 5 seconds</li>
+                        <li>60 degrees for 5 seconds</li>
+                        <li>Back to 90 degrees for 5 seconds</li>
+                    </ul>
+                    <figure>
+                        <img src="./images/fig11.png" alt="PID Controller">
+                        <figcaption><strong>Figure 11.</strong> PID Controller</figcaption>
+                    </figure>
+                </div>
+            </section>
+            <section class="project-section" id="result">
+                <h2 class="section-title">Result and Testing</h2>
+                <div class="section-content">
+                    <p>
+                        Our final system achieved partial credit for the final demonstration. While the core functionality of the PID controller and angle estimation was fully functional, we did not complete the full week 2 and week 3 checkoffs on schedule. During the final demonstration at the end of week 3 labs, all system components were functioning correctly, the IMU provided accurate angle measurements through the complementary filter, the motor responded to PWM commands, the serial interface accepted different parameters changes and the PID controller maintained targeted angles really well. However, we received partial credit because we did not implement the low-pass filter on the controller output signal, which was required for proper display and noise reduction on the VGA.
+                    </p>
+                    <figure>
+                        <img src="./images/fig12.png" alt="Arm setup and test angles">
+                        <figcaption><strong>Figure 12.</strong> Arm setup and test angles</figcaption>
+                    </figure>
+                </div>
+                <h3 class="sub-section-title"><u>Testing (P, then D, then I):</u></h3>
+                <div class="section-content">
+                    <p>
+                        To test the system, we adopted an incremental testing approach to develop and tune the PID controller. This is to build up complexity gradually to isolate issues and understand what each controller component is supposed to do. The open-loop control code (control = target_angle*WRAPVAL/180) was used initially to verify motor response before implementing closed loop control.  We began by implementing only the proportional term of the PID by setting the Kp to approximately 200. This allowed us to verify basic functionality, the system responded to angle errors and could reach target positions. Next we added the D term to dampen the oscillations to improve stability. First attempted to calculate the derivative as the difference between consecutive errors (derivative_error = error - previous_error) but this was problematic because it made the noise worse. When we experimented with our code, we found that using gyroscope measurement like (Kd*fix2float15(gyro[0]) provided better damping performance.
+                    </p>
+                    <p>
+                        Then we implemented the I term to eliminate steady-state error. The integral term (sum_error) accumulated error over time to reach the exact target angle. We settled Ki to 0.75 and then discovered the problem of integral windup during large angle changes. When the target angle changed dramatically, the integral term would accumulate a large value causing overshoot. To solve this, we clamped the integral accumulator using conditional statements to check if sum_error > 3000 or sum_error < -3000. The three PID gains were selected based on the observed visuals of the system. For example, if the stick bounced or overshot too much, we increased the D term to add damping. If it didn’t go high enough or responded too slowly, we increased the P term to stiffen the response. We only increased the I term when there was a steady state offset from the target angle, tuning it enough to remove the long-term error without reintroducing oscillations.
+                    </p>
+                </div>
+                <h3 class="sub-section-title"><u>PID Results:</u></h3>
+                <div class="section-content">
+                    <p>
+                        We found that the parameters which best controlled the angle change were as follows:
+                    </p>
+                    <figure>
+                        <table class="project-table">
+                            <thead>
+                                <tr>
+                                    <th>Parameter</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Kp</td>
+                                    <td>200</td>
+                                </tr>
+                                <tr>
+                                    <td>Ki</td>
+                                    <td>0.75</td>
+                                </tr>
+                                <tr>
+                                    <td>Kd</td>
+                                    <td>300</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <figcaption><strong>Table 2.</strong> PID Parameters</figcaption>
+                    </figure>
+                    <p>
+                        Unfortunately, despite our best efforts with tuning, we found that the settling time was over five seconds for a change in angle over thirty degrees; settling time was about four seconds for a thirty degree change, eight for sixty degrees, and eleven for ninety degrees. However, we found stable behavior for the full thirty through one-twenty degree range.
+                    </p>
+                </div>
+                <h3 class="sub-section-title"><u>Wrong Conversion:</u></h3>
+                <div class="section-content">
+                    <p>
+                        We changed from fixed-point to floating-point arithmetic for PID calculations to achieve precision, implementing the equation PID_controller_output = Kp*error + Ki*sum_error + Kd*fix2float15(gyro[0]). The complementary filter used weights of 0.999 (gyro) and 0.001 (accel), with low-pass filtering (>>4 bit shift) on the accelerometer data before angle calculation. Control signals were clamped to 0-4000 for safety, and PWM only updated on value changes. The control loop executed at exactly 1 kHz via PWM interrupt (CLKDIV=25.0, WRAPVAL=5000) on an overclocked 150 MHz system. This fixed our PID integration when controlling on the computer.
+                    </p>
+                </div>
+                <h3 class="sub-section-title"><u>Hardware Issues:</u></h3>
+                <div class="section-content">
+                    <p>
+                        Throughout the development process, we encountered significant hardware failures that required troubleshooting and component replacement. This impacted our progress toward meeting weekly checkpoints. The ducted fan motor failed twice during testing and required replacement on both occasions. These failures were caused by the wires being too short and “pulling” on the internal components within the fan. After the second replacement, we decided to rubber band it to the lever arm and also make the wires longer. This caused less tension and made the connection more stable. The MPU6050 IMU became non-functional partway through the lab, with the blue power LED failing to illuminate. This is a clear indication that the chip has been damaged. This required completely resoldering the failed IMU from the glass part and soldering a replacement MPU6050. The failure was likely caused by either a wiring error or damage to the box. After replacing the IMU, we took extra care to verify proper power supply connections and ensured there are no touching wires. Our wire connections are mechanically unreliable throughout the project with bad connection or no connection. We made a lot of trips to the soldering station to reinforce solder joints and repair broken connections. The mechanical stress from the moving lever arm, combined with the vibrations from the motor, exacerbated these connection issues.
+                    </p>
+                    <p>
+                        These hardware reliability issues consumed significant lab time that could have been spent on software tuning and feature implementation, contributing to our inability to complete the week 2 and week 3 checkoffs on schedule.
+                    </p>
+                    <figure>
+                        <img src="./images/fig13.png" alt="Look at the Spare Fan that had its wires pulled out. The fan stopped working due to the negative wire damaged internally due to tension.">
+                        <figcaption><strong>Figure 13.</strong> Look at the Spare Fan that had its wires pulled out. The fan stopped working due to the negative wire damaged internally due to tension.</figcaption>
+                    </figure>
+                    <figure>
+                        <img src="./images/fig14.png" alt="The dangling wires added extra weight that skewed our graphs and added more tension than necessary. Those were then taped to the wooden stick">
+                        <figcaption><strong>Figure 14.</strong> The dangling wires added extra weight that skewed our graphs and added more tension than necessary. Those were then taped to the wooden stick</figcaption>
+                    </figure>
+                    <p>
+                        Despite replacing the MPU6050, we've noticed that our VGA plots still occasionally freeze. To investigate further, we connected the SDA and SCL lines of the IMU to an oscilloscope and monitored the complementary angles on the serial terminal to confirm that we were receiving readings from the IMU. The I2C SDA and SCL lines appeared to be functioning correctly. Ultimately, we resolved the issue by securing some of the wires with tape and being more meticulous about the arrangement of our components and wiring.
+                    </p>
+                    <figure>
+                        <img src="./images/fig15.png" alt="I2C oscilloscope reading SDA & SCL line">
+                        <figcaption><strong>Figure 15.</strong> I2C oscilloscope reading SDA & SCL line</figcaption>
                     </figure>
                 </div>
             </section>
@@ -276,7 +369,7 @@
                 <h2 class="section-title">Conclusion</h2>
                 <div class="section-content">
                     <p>
-                        Overall, this project was a successful introduction to the RP2040 and microcontrollers, and we effectively imitated a cardinal’s song. However, if we were to do this lab again, we would try approximating the “swoop” frequency curve as sine functions by utilizing the sine lookup table. We optimized the program by multiplying a value by itself using the multiplication operation instead of the math power function. We can further optimize our program by instead finding its derivatives and using the fundamental theorem of calculus part two. We could also try utilizing the second core on this microcontroller to lift the load per thread. If given more time, we also want to fine-tune our frequency equation more to successfully trick the merlin app.
+                        The lab comprised the implementation of a closed-loop PID control system for a one degree of freedom helicopter using the RP2040 microcontroller. We integrated multiple embedded systems concepts including I2C sensor communication complementary filtering for angle estimation, PWM motor control, and real time parameter tuning through a serial interface. Despite encountering significant hardware challenges including motor failure, a broken IMU, unreliable wire connections, and a defective plug discovered near the deadline, we achieved a functional system capable of stable angle control. Although we did not complete the week 2 and week 3 checkoffs on schedule due to these hardware setbacks, we received partial credit for the final demonstration because all core functionality was operational, aside from the required low-pass filter on the PID signal display. The experience provided valuable lessons on the importance of careful hardware construction, incremental testing, and ensuring a sound overall setup so small issues which may arise are caught earlier.
                     </p>
                 </div>
             </section>
@@ -286,24 +379,19 @@
                 <div class="section-content">
                     <p>
                         <strong>Michelle Yang:</strong>
-                        Wrote most of the code.
+                        Lead the writing and debugging of majority of the code/logic.
                     </p>
                     <p>
                         <strong>Diane Pillsbury:</strong>
-                        Wrote the initial version of the debouncer code (final version of project, debouncer logic replaced by Michelle's implementation).
+                        Assisted immensely with determining appropriate pid parameters and debugging the program.
                     </p>
-                </div>
-            </section>
-            <section class="project-section" id="citation">
-                <h2 class="section-title">Citation</h2>
-                <div class="section-content citation-text">
                     <p>
-                        Adams, V. (n.d.). Synthesizing birdsong via direct digital synthesis¶. Birdsong_synthesis. <a href="https://vanhunteradams.com/Pico/Birds/Birdsong_synthesis.html">https://vanhunteradams.com/Pico/Birds/Birdsong_synthesis.html</a>
+                        <strong>Xia Yan Zhao:</strong>
+                        Assisted minimally with code writing and debugging the program.
                     </p>
                 </div>
             </section>
         </article>
-
     </main>
     <footer id="footer">
         <div class="footer-content">
